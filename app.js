@@ -6907,7 +6907,7 @@ async function recupererDonneesSupabase() {
 
     await obtenirSessionPrincipaleValide(supabase);
     const resultats = await Promise.all([
-        supabase.from("categories").select("id,nom"),
+        supabase.from("categories").select("id,nom,parent_id"),
         supabase
             .from("materiels")
             .select("id,nom,reference,description,stock,minimum,emplacement"),
@@ -7139,6 +7139,8 @@ function convertirDonneesSupabaseEnDonneesApplication(donnees) {
 async function appliquerDonneesSupabaseLocalement(donnees) {
 
     if (existeModificationsEnAttente() || (utilisateurConnecte?.id && lireJournalStock().length)) return;
+
+    CISPharmaCategories.recevoir(donnees.categories);
 
     const application =
         convertirDonneesSupabaseEnDonneesApplication(
@@ -11168,99 +11170,8 @@ function afficherResultatsInventaire() {
     conteneur.innerHTML = "";
 
 
-    categories.forEach(
-        function (categorie) {
-
-            const liste =
-                materiels.filter(
-                    function (materiel) {
-
-                        return materiel.categories
-                            .some(
-                                function (cat) {
-
-                                    return (
-                                        cat.toLowerCase()
-                                        ===
-                                        categorie.toLowerCase()
-                                    );
-
-                                }
-                            );
-
-                    }
-                );
-
-
-            conteneur.innerHTML += `
-
-                <section
-                    class="categorie-bloc"
-                >
-
-                    <button
-                        class="categorie-titre"
-                        type="button"
-                        onclick="
-                            basculerCategorie(this)
-                        "
-                    >
-
-                        <span>
-
-                            📂
-                            ${echapperHTML(
-                                categorie
-                            )}
-
-                            <small>
-                                ${liste.length}
-                            </small>
-
-                        </span>
-
-
-                        <span>
-                            ▼
-                        </span>
-
-                    </button>
-
-
-                    <div
-                        class="categorie-contenu"
-                        style="display:none"
-                    >
-
-                        ${
-                            liste.length === 0
-                            ?
-                            `
-                            <div class="materiel">
-
-                                <p>
-                                    Aucun matériel
-                                    dans cette catégorie.
-                                </p>
-
-                            </div>
-                            `
-                            :
-                            liste
-                                .map(
-                                    genererCarteInventaire
-                                )
-                                .join("")
-                        }
-
-                    </div>
-
-                </section>
-
-            `;
-
-        }
-    );
+    CISPharmaCategories.style();
+    conteneur.innerHTML = CISPharmaCategories.blocs(categories, materiels, genererCarteInventaire);
 
 }
 
@@ -11282,6 +11193,7 @@ function basculerCategorie(
 
     const ouvert =
         contenu.style.display !== "none";
+    bouton.setAttribute("aria-expanded", String(!ouvert));
 
 
     if (ouvert) {
@@ -11321,9 +11233,7 @@ function genererCarteInventaire(
 
     const categoriesMateriel =
         materiel.categories
-            .map(
-                echapperHTML
-            )
+            .map(nom => echapperHTML(CISPharmaCategories.chemin(nom)))
             .join(
                 " • "
             );
@@ -12135,106 +12045,10 @@ async function afficherRetourIntervention() {
 
 
 function afficherCategoriesRetour() {
-
-    const conteneur =
-        document.getElementById(
-            "categories-retour"
-        );
-
-
-    if (!conteneur) {
-
-        return;
-
-    }
-
-
-    conteneur.innerHTML = "";
-
-
-    categories.forEach(
-        function (categorie) {
-
-            const liste =
-                materiels.filter(
-                    function (materiel) {
-
-                        return materiel.categories
-                            .some(
-                                function (cat) {
-
-                                    return (
-                                        cat.toLowerCase()
-                                        ===
-                                        categorie.toLowerCase()
-                                    );
-
-                                }
-                            );
-
-                    }
-                );
-
-
-            conteneur.innerHTML += `
-
-                <section
-                    class="categorie-bloc"
-                >
-
-                    <button
-                        class="categorie-titre"
-                        type="button"
-                        onclick="
-                            basculerCategorie(this)
-                        "
-                    >
-
-                        <span>
-
-                            📂
-                            ${echapperHTML(
-                                categorie
-                            )}
-
-                            <small>
-                                ${liste.length}
-                            </small>
-
-                        </span>
-
-
-                        <span>
-                            ▼
-                        </span>
-
-                    </button>
-
-
-                    <div
-                        class="categorie-contenu"
-                        style="display:none"
-                    >
-
-                        ${
-                            liste
-                                .map(
-                                    genererCarteRetour
-                                )
-                                .join("")
-                        }
-
-                    </div>
-
-                </section>
-
-            `;
-
-        }
-    );
-
+    const conteneur=document.getElementById('categories-retour');
+    CISPharmaCategories.style();
+    if(conteneur) conteneur.innerHTML=CISPharmaCategories.blocs(categories,materiels,genererCarteRetour);
 }
-
 
 /* =========================================================
    CARTE RETOUR
@@ -18916,7 +18730,7 @@ function afficherFormulaireMateriel(
 
                             <span>
                                 ${echapperHTML(
-                                    categorie
+                                    CISPharmaCategories.chemin(categorie)
                                 )}
                             </span>
 
@@ -19571,401 +19385,7 @@ function lirePhotoPuis(
    CATEGORIES
    ========================================================= */
 
-function gestionCategories() {
-
-    if (!verifierPermissionOuRetourAccueil(
-        "acces_gestion_categories"
-    )) {
-        return;
-    }
-
-
-    let html = `
-
-        <main class="page">
-
-            <button
-                class="retour-button"
-                onclick="
-                    afficherMenuAdministration()
-                "
-            >
-                ← Retour
-            </button>
-
-
-            <h2>
-                📂 Gestion des catégories
-            </h2>
-
-
-            <button
-                class="add-button"
-                onclick="
-                    ajouterCategorie()
-                "
-            >
-                ➕ Nouvelle catégorie
-            </button>
-
-    `;
-
-
-    categories.forEach(
-        function (categorie) {
-
-            html += `
-
-                <div
-                    class="materiel"
-                >
-
-                    <h3>
-                        📂
-                        ${echapperHTML(
-                            categorie
-                        )}
-                    </h3>
-
-
-                    <div
-                        class="
-                            actions-materiel
-                        "
-                    >
-
-                        <button
-                            onclick="
-                                modifierCategorie(
-                                    '${echapperHTML(
-                                        categorie
-                                    )}'
-                                )
-                            "
-                        >
-                            ✏️ Modifier
-                        </button>
-
-
-                        <button
-                            onclick="
-                                supprimerCategorie(
-                                    '${echapperHTML(
-                                        categorie
-                                    )}'
-                                )
-                            "
-                        >
-                            🗑️ Supprimer
-                        </button>
-
-                    </div>
-
-                </div>
-
-            `;
-
-        }
-    );
-
-
-    html += `
-        </main>
-    `;
-
-
-    document.getElementById(
-        "app"
-    ).innerHTML =
-        html;
-
-}
-
-
-async function ajouterCategorie() {
-
-    const nom =
-        await afficherSaisieCIS(
-            "Nom de la nouvelle catégorie :"
-        );
-
-
-    if (
-        nom === null
-    ) {
-
-        return;
-
-    }
-
-
-    const nouveau =
-        nom.trim();
-
-
-    if (!nouveau) {
-
-        alert(
-            "Le nom ne peut pas être vide."
-        );
-
-        return;
-
-    }
-
-
-    const existe =
-        categories.some(
-            function (categorie) {
-
-                return (
-                    categorie.toLowerCase()
-                    ===
-                    nouveau.toLowerCase()
-                );
-
-            }
-        );
-
-
-    if (existe) {
-
-        alert(
-            "Cette catégorie existe déjà."
-        );
-
-        return;
-
-    }
-
-
-    categories.push(
-        nouveau
-    );
-
-
-    sauvegarderToutesLesDonnees();
-
-    void synchroniserApresModification();
-
-
-    alert(
-        "✅ Catégorie créée."
-    );
-
-
-    gestionCategories();
-
-}
-
-
-async function modifierCategorie(
-    ancienNom
-) {
-
-    const nouveauNom =
-        await afficherSaisieCIS(
-            "Nouveau nom de la catégorie :",
-            ancienNom
-        );
-
-
-    if (
-        nouveauNom === null
-    ) {
-
-        return;
-
-    }
-
-
-    const nouveau =
-        nouveauNom.trim();
-
-
-    if (!nouveau) {
-
-        alert(
-            "Le nom ne peut pas être vide."
-        );
-
-        return;
-
-    }
-
-
-    const existe =
-        categories.some(
-            function (categorie) {
-
-                return (
-                    categorie !==
-                    ancienNom
-                    &&
-                    categorie.toLowerCase()
-                    ===
-                    nouveau.toLowerCase()
-                );
-
-            }
-        );
-
-
-    if (existe) {
-
-        alert(
-            "Cette catégorie existe déjà."
-        );
-
-        return;
-
-    }
-
-
-    const index =
-        categories.indexOf(
-            ancienNom
-        );
-
-
-    if (index === -1) {
-
-        return;
-
-    }
-
-
-    categories[index] =
-        nouveau;
-
-
-    materiels.forEach(
-        function (materiel) {
-
-            materiel.categories =
-                materiel.categories.map(
-                    function (categorie) {
-
-                        if (
-                            categorie.toLowerCase()
-                            ===
-                            ancienNom.toLowerCase()
-                        ) {
-
-                            return nouveau;
-
-                        }
-
-                        return categorie;
-
-                    }
-                );
-
-        }
-    );
-
-
-    sauvegarderToutesLesDonnees();
-
-    void synchroniserApresModification();
-
-
-    alert(
-        "✅ Catégorie modifiée."
-    );
-
-
-    gestionCategories();
-
-}
-
-
-async function supprimerCategorie(
-    nom
-) {
-
-    if (!verifierPermissionOuRetourAccueil(
-        "acces_administration"
-    )) {
-        return;
-    }
-
-
-    if (
-        !await afficherConfirmationCIS(
-            "Veux-tu supprimer « " +
-            nom +
-            " » ?"
-        )
-    ) {
-
-        return;
-
-    }
-
-
-
-    categories =
-        categories.filter(
-            function (categorie) {
-
-                return (
-                    categorie !==
-                    nom
-                );
-
-            }
-        );
-
-
-    materiels.forEach(
-        function (materiel) {
-
-            materiel.categories =
-                materiel.categories.filter(
-                    function (categorie) {
-
-                        return (
-                            categorie !==
-                            nom
-                        );
-
-                    }
-                );
-
-
-            if (
-                materiel.categories.length ===
-                0
-            ) {
-
-                materiel.categories =
-                    categories.includes(
-                        "AUTRE"
-                    )
-                        ? ["AUTRE"]
-                        : [];
-
-            }
-
-        }
-    );
-
-
-    sauvegarderToutesLesDonnees();
-
-    void synchroniserApresModification();
-
-
-    alert(
-        "✅ Catégorie supprimée."
-    );
-
-
-    gestionCategories();
-
-}
-
+function gestionCategories() { return CISPharmaCategories.ouvrir(); }
 
 /* =========================================================
    STOCK
