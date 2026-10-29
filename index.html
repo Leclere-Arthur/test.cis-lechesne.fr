@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+<script src="./isolation-test.js?v=1"></script>
+<meta name="robots" content="noindex,nofollow">
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+
+    <meta
+        name="theme-color"
+        content="#1f2937"
+    >
+
+    <meta
+        name="description"
+        content="Gestion du matériel de la caserne"
+    >
+
+    <meta
+        name="apple-mobile-web-app-capable"
+        content="yes"
+    >
+
+    <meta
+        name="apple-mobile-web-app-status-bar-style"
+        content="default"
+    >
+
+    <meta
+        name="apple-mobile-web-app-title"
+        content="CIS Le Chesne TEST"
+    >
+
+    <link
+        rel="manifest"
+        href="./manifest.json"
+    >
+
+    <link
+        rel="apple-touch-icon"
+        href="./apple-touch-icon.png"
+    >
+
+    <title>CIS Le Chesne — TEST</title>
+
+    <link
+        rel="stylesheet"
+        href="./style.css"
+    >
+
+    <!-- Inline so the loading screen needs no additional CSS request. -->
+    <style>
+        #ecran-demarrage {
+            position:fixed;inset:0;z-index:300000;min-height:100vh;min-height:100dvh;
+            display:flex;align-items:center;justify-content:center;
+            padding:calc(28px + env(safe-area-inset-top,0px)) 24px calc(28px + env(safe-area-inset-bottom,0px));
+            background:#f3f4f6;color:#20272b;font-family:Arial,Helvetica,sans-serif;text-align:center;
+        }
+        #ecran-demarrage .demarrage-contenu {width:100%;max-width:320px}
+        #ecran-demarrage .demarrage-symbole {position:relative;width:116px;height:116px;margin:0 auto 27px;display:grid;place-items:center}
+        #ecran-demarrage .demarrage-symbole::before {content:"";position:absolute;inset:0;border:3px solid #dce7e1;border-top-color:#217448;border-right-color:#217448;border-radius:50%;animation:cis-demarrage-tourne 1.15s linear infinite}
+        #ecran-demarrage img {display:block;width:88px;height:88px;border-radius:21px;object-fit:contain}
+        #ecran-demarrage h1 {margin:0 0 13px;font-size:25px;line-height:1.2;font-weight:700;letter-spacing:-.3px;color:#20272b}
+        #ecran-demarrage p {margin:0;font-size:15px;line-height:1.6;color:#626d75}
+        #ecran-demarrage .demarrage-points {display:flex;justify-content:center;gap:7px;margin-top:19px}
+        #ecran-demarrage .demarrage-points span {width:6px;height:6px;border-radius:50%;background:#217448;animation:cis-demarrage-point 1.2s ease-in-out infinite}
+        #ecran-demarrage .demarrage-points span:nth-child(2) {animation-delay:.16s}
+        #ecran-demarrage .demarrage-points span:nth-child(3) {animation-delay:.32s}
+        #ecran-demarrage button {margin-top:19px;padding:11px 18px;min-height:44px;background:#fff;border:1px solid #bac8bf;border-radius:10px;color:#195d39;font:inherit;cursor:pointer}
+        #ecran-demarrage button[hidden] {display:none}
+        @keyframes cis-demarrage-tourne {to{transform:rotate(360deg)}}
+        @keyframes cis-demarrage-point {0%,80%,100%{opacity:.3;transform:translateY(0)}40%{opacity:1;transform:translateY(-4px)}}
+        @media(prefers-reduced-motion:reduce) {#ecran-demarrage .demarrage-symbole::before,#ecran-demarrage .demarrage-points span{animation:none}}
+    </style>
+<link rel="stylesheet" href="./formations.css">
+<link rel="stylesheet" href="./fiche-garde.css">
+<link rel="stylesheet" href="./inventaire-technique.css">
+<script src="./inventaire-technique.js" defer></script>
+<style>html,body{touch-action:pan-x pan-y}button,a,input,select,textarea,label{touch-action:manipulation}@media(pointer:coarse){input:not([type=checkbox]):not([type=radio]),select,textarea{font-size:16px!important}}</style><script src="./gestes-interface.js?v=1"></script></head>
+
+
+<body>
+
+    <!-- Replaced automatically when the login page or home page is rendered. -->
+    <div id="app">
+        <div id="ecran-demarrage" role="status" aria-live="polite" aria-label="Chargement de l’application">
+            <div class="demarrage-contenu">
+                <div class="demarrage-symbole" aria-hidden="true"><img src="./icon-192.png" alt="" width="88" height="88"></div>
+                <h1>CIS Le Chesne</h1>
+                <p id="demarrage-message">Chargement de l’application…</p>
+                <div class="demarrage-points" aria-hidden="true"><span></span><span></span><span></span></div>
+                <button type="button" id="demarrage-reessayer" hidden>Réessayer</button>
+                <noscript><p>Active JavaScript dans ton navigateur pour ouvrir l’application.</p></noscript>
+            </div>
+        </div>
+    </div>
+    <script>
+        // Reload only after a user click; this never clears local offline data.
+        document.getElementById('demarrage-reessayer').addEventListener('click', function () { window.location.reload(); });
+        window.setTimeout(function () {
+            const message = document.getElementById('demarrage-message');
+            const bouton = document.getElementById('demarrage-reessayer');
+            if (message && bouton) {
+                message.textContent = 'Le chargement prend plus de temps que prévu…';
+                bouton.hidden = false;
+            }
+        }, 20000);
+    </script>
+
+    <!--
+        Bibliothèque officielle Supabase.
+        Elle doit être chargée AVANT app.js.
+    -->
+    <script
+        src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"
+        defer
+    ></script>
+
+
+    <!-- Configuration Supabase -->
+    <script src="./supabase-config.js" defer></script>
+
+
+    <!-- Application -->
+    <script src="./app.js?v=retour-normal-20261028c" defer></script>
+    <script src="./travail-equipe.js?v=retour-normal-20261028c" defer></script>
+    <script src="./pilotage-suivi.js" defer></script>
+
+
+<script src="./pilotage-mesures.js" defer></script><script src="./messages-application.js" defer></script><script src="./nettoyage-sync.js" defer></script><script src="./formations-commun.js" defer></script><script src="./formations.js" defer></script><script src="./fiche-garde-pdf.js" defer></script><script src="./fiche-garde.js?v=retour-normal-20261028c" defer></script><script src="./maintenance-client.js?v=1" defer></script><script src="./interface-personnelle.js?v=1" defer></script><script src="./equipe-evolution.js?v=1" defer></script></body>
+
+</html>
+
+
+
+
+
+
+
+
+
+
+
