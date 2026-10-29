@@ -945,15 +945,7 @@ const STORAGE = {
     archivesHistoriqueV3: "archives_historique_v3"
 };
 
-const CATEGORIES_PAR_DEFAUT = [
-    "ROUGE",
-    "BLEUE",
-    "VERT",
-    "JAUNE",
-    "CONSOMABLE",
-    "EPI",
-    "AUTRE"
-];
+
 
 let materiels = [];
 let categories = [];
@@ -5324,27 +5316,6 @@ function normaliserToutesLesDonnees() {
         .filter(Boolean);
 
 
-    CATEGORIES_PAR_DEFAUT.forEach(function (categorie) {
-
-        const existe = categories.some(function (nom) {
-
-            return (
-                nom.toLowerCase() ===
-                categorie.toLowerCase()
-            );
-
-        });
-
-
-        if (!existe) {
-
-            categories.push(categorie);
-
-        }
-
-    });
-
-
     categories = categories.filter(
         function (categorie, index, array) {
 
@@ -5457,15 +5428,6 @@ function normaliserMateriel(materiel, index) {
             String(
                 m.categorie
             ).trim()
-        ];
-
-    }
-
-
-    if (cats.length === 0) {
-
-        cats = [
-            "AUTRE"
         ];
 
     }
@@ -7031,7 +6993,7 @@ function convertirDonneesSupabaseEnDonneesApplication(donnees) {
             categoriesParMateriel.get(String(materiel.id)) || [];
 
         if (listeCategories.length === 0) {
-            listeCategories = ["AUTRE"];
+            listeCategories = [];
         }
 
         return {
@@ -7147,9 +7109,8 @@ async function appliquerDonneesSupabaseLocalement(donnees) {
             donnees
         );
 
-    if (application.categories.length > 0) {
-        categories = application.categories;
-    }
+    // Une liste distante vide est un résultat valide, pas un échec de lecture.
+    categories = application.categories;
 
     materiels = application.materiels;
     historique = application.historique;
