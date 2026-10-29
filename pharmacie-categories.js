@@ -41,5 +41,6 @@
  busy=true;render();try{if(a==='supprimer')await executer('pharmacie_categorie_supprimer',{p_id:id});else await actualiser();}catch(e){message=e.message||'Opération impossible. Actualise pour vérifier le résultat.';}finally{busy=false;if(document.querySelector('.pharma-cat-page'))render();}}
  document.addEventListener('click',e=>{const b=e.target.closest('[data-pharma-cat]');if(!b)return;e.preventDefault();void action(b.dataset.pharmaCat,b.dataset.id);});
  document.addEventListener('submit',async e=>{if(e.target.id!=='pharma-cat-form')return;e.preventDefault();if(busy||!permission())return;const formId=e.target.dataset.catId||null;const f=new FormData(e.target),nom=String(f.get('nom')||'').trim(),parent=String(f.get('parent')||'')||null;if(!nom)return;edit={id:formId,nom,parent_id:parent};busy=true;message='';render();try{await executer('pharmacie_categorie_enregistrer',{p_id:edit.id,p_nom:nom,p_parent:parent});edit=null;}catch(error){message=error.message||'Enregistrement impossible. Actualise pour vérifier le résultat.';}finally{busy=false;if(document.querySelector('.pharma-cat-page'))render();}});
- g.CISPharmaCategories={recevoir,chemin,arbre,blocs,ouvrir,lire,style};
+ async function ouvrirAction(a,nom){await ouvrir();const x=lire().find(x=>norm(x.nom)===norm(nom));return action(a,x?.id||'');}
+ g.CISPharmaCategories={recevoir,chemin,arbre,blocs,ouvrir,ouvrirAction,lire,style};
 })(globalThis);

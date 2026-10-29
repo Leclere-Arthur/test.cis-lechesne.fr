@@ -19386,6 +19386,11 @@ function lirePhotoPuis(
    ========================================================= */
 
 function gestionCategories() { return CISPharmaCategories.ouvrir(); }
+// Conserve les points d’entrée exportés par l’application et les anciens liens.
+function ajouterCategorie() { return CISPharmaCategories.ouvrirAction('nouvelle'); }
+function modifierCategorie(nom) { return CISPharmaCategories.ouvrirAction('modifier', nom); }
+function supprimerCategorie(nom) { return CISPharmaCategories.ouvrirAction('supprimer', nom); }
+
 
 /* =========================================================
    STOCK

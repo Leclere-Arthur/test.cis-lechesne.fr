@@ -23,7 +23,7 @@ importScripts("./notifications-history.js");
  * à récupérer le nouvel app.js.
  */
 
-const CACHE_NAME = "cis-test-sous-categories-20261029-v1";
+const CACHE_NAME = "cis-test-sous-categories-20261029-v2";
 
 
 /*
@@ -38,8 +38,8 @@ const FICHIERS_APPLICATION = ["./isolation-test.js?v=1","./maintenance-client.js
 
     "./index.html",
 
-    "./app.js?v=sous-categories-test-v1",
-    "./pharmacie-categories.js?v=1",
+    "./app.js?v=sous-categories-test-v2",
+    "./pharmacie-categories.js?v=2",
     "./formations-commun.js",
     "./formations.js",
     "./formations.css",
