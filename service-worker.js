@@ -7,7 +7,7 @@ self.addEventListener('fetch',event=>{
   event.stopImmediatePropagation();event.respondWith(Promise.resolve(new Response(JSON.stringify({error:'Requête désactivée dans la version de test.'}),{status:403,headers:{'Content-Type':'application/json'}})));
  }
 });
-importScripts("./notifications-history.js");
+importScripts("./notifications-history.js?v=vsav-sans-stock-v1");
 
 /* =========================================================
    INVENTAIRE CASERNE
@@ -23,7 +23,7 @@ importScripts("./notifications-history.js");
  * à récupérer le nouvel app.js.
  */
 
-const CACHE_NAME = "cis-test-categories-supprimees-20261029-v3";
+const CACHE_NAME = "cis-test-vsav-sans-stock-20261029-v1";
 
 
 /*
@@ -37,8 +37,10 @@ const FICHIERS_APPLICATION = ["./isolation-test.js?v=1","./maintenance-client.js
     "./",
 
     "./index.html",
+    "./vsav-sans-stock.js?v=1",
+    "./suivi-vsav.js?v=sans-stock-v1",
 
-    "./app.js?v=categories-supprimees-test-v3",
+    "./app.js?v=vsav-sans-stock-test-v1",
     "./pharmacie-categories.js?v=3",
     "./formations-commun.js",
     "./formations.js",

@@ -41,7 +41,7 @@
   const raw=String(data.target||data.destination||data.type_notification||data.type||data.data?.target||'').toLowerCase();
   const words=plain([data.title,data.body,data.tag,raw].join(' ')).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/œ/g,'oe');
   if (/menage/.test(words)&&/stock|rupture|inventaire|produit/.test(words)) return 'menage-inventaire';
-  if (['menage-inventaire','vehicules-inventaire','heures','pharmacie','accueil'].includes(raw)) return raw;
+  if (['menage-inventaire','vehicules-inventaire','heures','pharmacie','accueil','suivi-vsav'].includes(raw)) return raw;
   const type=raw.replace(/^caserne[_:]/,'');
   if (caserneTypes.includes(type)) return 'caserne:'+type;
   if (/inventaire.*vehicule|vehicule.*inventaire/.test(words)) return 'vehicules-inventaire';
@@ -55,7 +55,7 @@
   const db=await open(),tx=db.transaction(['notifications','suppressions'],'readwrite'),completion=done(tx),store=tx.objectStore('notifications');
   const stable=data.notification_id||(/^menage-rupture-/.test(String(data.tag||''))?data.tag:null);
   const id=String(userId)+':'+(stable||crypto.randomUUID());
-  const record={id,userId:String(userId),title:plain(data.title)||'Notification',body:plain(data.body),receivedAt:new Date().toISOString(),target:route(data),read:false};
+  const record={id,userId:String(userId),title:plain(data.title)||'Notification',body:plain(data.body),receivedAt:data.receivedAt&&Number.isFinite(Date.parse(data.receivedAt))?new Date(data.receivedAt).toISOString():new Date().toISOString(),target:route(data),read:false};
   // Un renvoi de la même alerte ménage ne doit pas créer un doublon ni modifier sa date.
   let dejaRecue=null;
   const suppression=tx.objectStore('suppressions').get(id);
