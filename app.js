@@ -5469,6 +5469,7 @@ function normaliserMateriel(materiel, index) {
             cats,
 
         gere_stock_pharmacie: m.gere_stock_pharmacie !== false,
+        inventaire_vsav_materiel_id: m.inventaire_vsav_materiel_id || null,
 
         stock:
             Math.max(
@@ -6898,7 +6899,7 @@ async function recupererDonneesSupabase() {
         supabase.from("categories").select("id,nom,parent_id"),
         supabase
             .from("materiels")
-            .select("id,nom,reference,description,stock,minimum,emplacement,gere_stock_pharmacie"),
+            .select("id,nom,reference,description,stock,minimum,emplacement,gere_stock_pharmacie,inventaire_vsav_materiel_id"),
         supabase
             .from("materiel_categories")
             .select("materiel_id,categorie_id"),
@@ -7029,6 +7030,7 @@ function convertirDonneesSupabaseEnDonneesApplication(donnees) {
             description: String(materiel.description || ""),
             categories: listeCategories,
             gere_stock_pharmacie: materiel.gere_stock_pharmacie !== false,
+            inventaire_vsav_materiel_id: materiel.inventaire_vsav_materiel_id || null,
             stock: Math.max(0, Math.floor(Number(materiel.stock || 0))),
             minimum: Math.max(0, Math.floor(Number(materiel.minimum || 0))),
             emplacement: String(materiel.emplacement || ""),
@@ -7421,6 +7423,7 @@ async function envoyerDonneesLocalesVersSupabase() {
             reference: String(materiel.reference || ""),
             description: String(materiel.description || ""),
             gere_stock_pharmacie: materiel.gere_stock_pharmacie !== false,
+            inventaire_vsav_materiel_id: materiel.inventaire_vsav_materiel_id || null,
             minimum: Math.max(0, Math.floor(Number(materiel.minimum || 0))),
             emplacement: String(materiel.emplacement || ""),
         };
@@ -18836,6 +18839,7 @@ function afficherFormulaireMateriel(
 
                 <label style="display:flex;align-items:center;gap:10px"><input id="gere-stock-pharmacie" type="checkbox" ${materiel?.gere_stock_pharmacie !== false ? 'checked' : ''} style="width:auto"> Géré dans le stock pharmacie</label>
                 <p>Sans réserve pharmacie : l’utilisation est signalée dans Suivi VSAV jusqu’au réarmement.</p>
+                <div id="vsav-lien-groupe"><label>Matériel correspondant dans l’inventaire VSAV<select id="inventaire-vsav-lien" style="display:block;width:100%;padding:12px;font-size:16px"><option value="">Aucun lien</option>${materiel?.inventaire_vsav_materiel_id?`<option selected value="${echapperHTML(materiel.inventaire_vsav_materiel_id)}">Correspondance enregistrée</option>`:''}</select></label><p id="vsav-lien-statut" role="status"></p></div>
                 <label>
                     Quantité en stock
                 </label>
@@ -19026,6 +19030,7 @@ function afficherApercuPhoto(
 function enregistrerMateriel() {
 
     const gereStock = document.getElementById("gere-stock-pharmacie")?.checked !== false;
+    const lienVSAV = gereStock ? null : document.getElementById("inventaire-vsav-lien")?.value || null;
     const nom =
         document.getElementById(
             "nom-materiel"
@@ -19176,6 +19181,7 @@ function enregistrerMateriel() {
 
 
         materiel.gere_stock_pharmacie = gereStock;
+        materiel.inventaire_vsav_materiel_id = lienVSAV;
         materiel.nom =
             nom;
 
@@ -19266,6 +19272,7 @@ function enregistrerMateriel() {
 
     const nouveauMateriel = {
         gere_stock_pharmacie: gereStock,
+        inventaire_vsav_materiel_id: lienVSAV,
 
         id:
             genererUUID(),
@@ -22621,12 +22628,13 @@ function vehInventaireActualiserQuantite(input){
   e.textContent=erreur?(Number.isInteger(valeur)&&valeur>=0&&valeur<attendue?'Matériel manquant : ':'Écart de quantité : ')+(Number.isInteger(valeur)&&valeur>=0?valeur:'à renseigner')+' / '+attendue:'Quantité conforme';
  });
 }
+function quantiteVSAVDisponible(m,session){const a=(session?.anomalies||[]).find(a=>a.materiel_id===m.id&&a.source==='utilisation_pharmacie');return a?.quantite_constatee??m.quantite;}
 function vehInventaireOuvrirZone(id){
  if(id==='__technique'){CISTechnique.ouvrir();return;}
  const session=vehInventaireSession,z=vehInventaireZones.find(x=>x.id===id);if(!session||!z)return;
  const materiels=vehInventaireMateriels.filter(m=>m.zone_id===id);
  const precedent=session.controles[id]||{};
- vehInventaireAfficher(`<div class="veh-inventaire-contenu"><button class="retour-button veh-retour" onclick="vehInventaireAfficherZones()">← Coffres</button><h1>${vehInventaireHTML(z.nom)}</h1>${vehPhotoMiniature(z.photo_path,"detail")}<p class="veh-muted">Choisis l'état de chaque matériel. Appuie sur son nom pour ajouter une observation ou modifier la quantité constatée.</p><div id="veh-materiels">${materiels.length?materiels.map(m=>{const alerte=(session.anomalies||[]).find(a=>a.materiel_id===m.id);const valeur=precedent[m.id]||{},q=valeur.quantite_constatee??m.quantite,ecart=Number(q)!==Number(m.quantite);return `<div class="veh-materiel-ligne" data-materiel="${m.id}" data-quantite-attendue="${Number(m.quantite)}"><div class="veh-materiel-haut"><button type="button" class="veh-materiel-ouvrir" aria-expanded="false" onclick="vehInventaireBasculerMateriel('${m.id}')"><strong>${vehInventaireHTML(m.nom)}</strong><small>Prévu : <b>${Number(m.quantite)}</b> ${ecart?`· <span class="veh-quantite-erreur">${Number(q)<Number(m.quantite)?'Matériel manquant':'Constaté'} : ${Number(q)}</span>`:''}</small></button><span class="veh-materiel-chevron" aria-hidden="true">⌄</span></div>${alerte?`<p role="note" style="padding:12px;border-radius:9px;background:${alerte.etat==='hs'?'#ffe1e1':'#fff0b3'};color:#442b25;border:2px solid ${alerte.etat==='hs'?'#bc2525':'#bc8d13'}"><strong>Dernier signalement : ${alerte.etat==='hs'?'HS':'À surveiller'}</strong>${alerte.observation?'<br>'+vehInventaireHTML(alerte.observation):''}<br><small>${new Date(alerte.date).toLocaleString('fr-FR')}</small></p>`:''}<div class="veh-etat">${[["bon","Bon"],["a_surveiller","À surveiller"],["hs","HS"]].map(([val,lib])=>`<label><input type="radio" name="etat-${m.id}" value="${val}" ${valeur.etat===val?"checked":""}> ${lib}</label>`).join("")}</div><div class="veh-materiel-details">${vehPhotoMiniature(m.photo_path,"materiel")}<label class="veh-quantite-saisie"><strong>Quantité constatée</strong><input type="number" min="0" step="1" inputmode="numeric" value="${Number(q)}" oninput="vehInventaireActualiserQuantite(this)" aria-label="Quantité constatée de ${vehInventaireHTML(m.nom)}"></label><p class="veh-quantite-statut ${ecart?'veh-quantite-erreur':''}">${ecart?`${Number(q)<Number(m.quantite)?'Matériel manquant':'Écart de quantité'} : ${Number(q)} / ${Number(m.quantite)}`:'Quantité conforme'}</p><label>Observation<textarea class="veh-note" rows="2" placeholder="Observation (facultatif)">${vehInventaireHTML(valeur.observation||"")}</textarea></label></div></div>`}).join(""):'<p>Aucun matériel configuré pour cette zone.</p>'}</div><button class="veh-action" onclick="vehInventaireEnregistrerZone('${id}')">Enregistrer ce coffre</button></div>`);
+ vehInventaireAfficher(`<div class="veh-inventaire-contenu"><button class="retour-button veh-retour" onclick="vehInventaireAfficherZones()">← Coffres</button><h1>${vehInventaireHTML(z.nom)}</h1>${vehPhotoMiniature(z.photo_path,"detail")}<p class="veh-muted">Choisis l'état de chaque matériel. Appuie sur son nom pour ajouter une observation ou modifier la quantité constatée.</p><div id="veh-materiels">${materiels.length?materiels.map(m=>{const alerte=(session.anomalies||[]).find(a=>a.materiel_id===m.id);const valeur=precedent[m.id]||{},q=valeur.quantite_constatee??quantiteVSAVDisponible(m,session),ecart=Number(q)!==Number(m.quantite);return `<div class="veh-materiel-ligne" data-materiel="${m.id}" data-quantite-attendue="${Number(m.quantite)}"><div class="veh-materiel-haut"><button type="button" class="veh-materiel-ouvrir" aria-expanded="false" onclick="vehInventaireBasculerMateriel('${m.id}')"><strong>${vehInventaireHTML(m.nom)}</strong><small>Prévu : <b>${Number(m.quantite)}</b> ${ecart?`· <span class="veh-quantite-erreur">${Number(q)<Number(m.quantite)?'Matériel manquant':'Constaté'} : ${Number(q)}</span>`:''}</small></button><span class="veh-materiel-chevron" aria-hidden="true">⌄</span></div>${alerte?`<p role="note" style="padding:12px;border-radius:9px;background:${alerte.etat==='hs'?'#ffe1e1':'#fff0b3'};color:#442b25;border:2px solid ${alerte.etat==='hs'?'#bc2525':'#bc8d13'}"><strong>${alerte.source==='utilisation_pharmacie'?'Matériel manquant — réarmement en attente'+(alerte.etat==='hs'?' · HS':''):'Dernier signalement : '+(alerte.etat==='hs'?'HS':'À surveiller')}</strong>${alerte.observation?'<br>'+vehInventaireHTML(alerte.observation):''}<br><small>${new Date(alerte.date).toLocaleString('fr-FR')}</small></p>`:''}<div class="veh-etat">${[["bon","Bon"],["a_surveiller","À surveiller"],["hs","HS"]].map(([val,lib])=>`<label><input type="radio" name="etat-${m.id}" value="${val}" ${valeur.etat===val?"checked":""}> ${lib}</label>`).join("")}</div><div class="veh-materiel-details">${vehPhotoMiniature(m.photo_path,"materiel")}<label class="veh-quantite-saisie"><strong>Quantité constatée</strong><input type="number" min="0" step="1" inputmode="numeric" value="${Number(q)}" oninput="vehInventaireActualiserQuantite(this)" aria-label="Quantité constatée de ${vehInventaireHTML(m.nom)}"></label><p class="veh-quantite-statut ${ecart?'veh-quantite-erreur':''}">${ecart?`${Number(q)<Number(m.quantite)?'Matériel manquant':'Écart de quantité'} : ${Number(q)} / ${Number(m.quantite)}`:'Quantité conforme'}</p><label>Observation<textarea class="veh-note" rows="2" placeholder="Observation (facultatif)">${vehInventaireHTML(valeur.observation||"")}</textarea></label></div></div>`}).join(""):'<p>Aucun matériel configuré pour cette zone.</p>'}</div><button class="veh-action" onclick="vehInventaireEnregistrerZone('${id}')">Enregistrer ce coffre</button></div>`);
 }
 function vehInventaireEnregistrerZone(id){
  const session=vehInventaireSession;if(!session)return;
@@ -22653,7 +22661,7 @@ async function vehInventaireTerminerInterne(){
  if(!(await afficherConfirmationCIS(avertissement)))return;
  const btn=document.querySelector(".veh-inventaire-contenu > .veh-action");if(btn){btn.disabled=true;btn.textContent="Enregistrement…";}
  try{
-  const sb=obtenirClientSupabase();const payload={vehicule_id:session.vehicule.id,vehicule_nom:session.vehicule.nom,controle_par:profilUtilisateurConnecte?.id,personnes_presentes:personnesAvecAuteur(session.participants),details:vehInventaireZones.map(z=>({zone_id:z.id,zone_nom:z.nom,cote:z.cote,materiels:vehInventaireMateriels.filter(m=>m.zone_id===z.id).map(m=>({materiel_id:m.id,nom:m.nom,quantite:m.quantite,quantite_constatee:session.controles[z.id]?.[m.id]?.quantite_constatee??m.quantite,etat_reference:m.etat_reference,etat:session.controles[z.id]?.[m.id]?.etat||null,observation:session.controles[z.id]?.[m.id]?.observation||""}))}))};
+  const sb=obtenirClientSupabase();const payload={vehicule_id:session.vehicule.id,vehicule_nom:session.vehicule.nom,controle_par:profilUtilisateurConnecte?.id,personnes_presentes:personnesAvecAuteur(session.participants),details:vehInventaireZones.map(z=>({zone_id:z.id,zone_nom:z.nom,cote:z.cote,materiels:vehInventaireMateriels.filter(m=>m.zone_id===z.id).map(m=>({materiel_id:m.id,nom:m.nom,quantite:m.quantite,quantite_constatee:session.controles[z.id]?.[m.id]?.quantite_constatee??quantiteVSAVDisponible(m,session),etat_reference:m.etat_reference,etat:session.controles[z.id]?.[m.id]?.etat||null,observation:session.controles[z.id]?.[m.id]?.observation||""}))}))};
   payload.details.push(CISTechnique.zone(session.technique||{}),CISTechnique.zoneAnnexe(session.annexe||{}));
   const {error}=await sb.from("cis_inventaires_vehicules").insert(payload);if(error)throw error;
   vehInventaireSession=null;
@@ -23933,7 +23941,7 @@ async function envoyerDocumentsEquipeParMail(){
 
 
 
-let suiviVSAVChargement;async function ouvrirSuiviVSAVPharma(){try{if(!window.CISSuiviVSAV){suiviVSAVChargement=suiviVSAVChargement||new Promise((resolve,reject)=>{const s=document.createElement('script');s.src='./suivi-vsav.js?v=sans-stock-v1';s.onload=resolve;s.onerror=()=>{suiviVSAVChargement=null;reject(Error('Module Suivi VSAV indisponible.'));};document.head.appendChild(s);});await suiviVSAVChargement;}await CISSuiviVSAV.ouvrir();}catch(e){alert(e.message);}}
+let suiviVSAVChargement;async function ouvrirSuiviVSAVPharma(){try{if(!window.CISSuiviVSAV){suiviVSAVChargement=suiviVSAVChargement||new Promise((resolve,reject)=>{const s=document.createElement('script');s.src='./suivi-vsav.js?v=lien-vsav-v1';s.onload=resolve;s.onerror=()=>{suiviVSAVChargement=null;reject(Error('Module Suivi VSAV indisponible.'));};document.head.appendChild(s);});await suiviVSAVChargement;}await CISSuiviVSAV.ouvrir();}catch(e){alert(e.message);}}
 
 
 
