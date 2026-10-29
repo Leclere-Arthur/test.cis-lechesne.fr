@@ -23,7 +23,7 @@ importScripts("./notifications-history.js?v=vsav-sans-stock-v1");
  * à récupérer le nouvel app.js.
  */
 
-const CACHE_NAME = "cis-test-vsav-sans-stock-20261029-v1";
+const CACHE_NAME = "cis-test-retour-confirmation-20261029-v2";
 
 
 /*
@@ -40,7 +40,7 @@ const FICHIERS_APPLICATION = ["./isolation-test.js?v=1","./maintenance-client.js
     "./vsav-sans-stock.js?v=1",
     "./suivi-vsav.js?v=sans-stock-v1",
 
-    "./app.js?v=vsav-sans-stock-test-v1",
+    "./app.js?v=retour-confirmation-test-v2",
     "./pharmacie-categories.js?v=3",
     "./formations-commun.js",
     "./formations.js",

@@ -955,6 +955,14 @@ let archivesHistorique = [];
 let consommationsEnCours = {};
 let materielEnModification = null;
 
+// Diagnostic limité à l'erreur et à l'étape : aucun jeton ni mot de passe.
+let etapeSynchronisationPharmacie = '';
+let dernierEchecSynchronisationPharmacie = null;
+function detailEchecSynchronisationPharmacie() {
+    const d=dernierEchecSynchronisationPharmacie;
+    if(!d||d.proprietaire!==String(utilisateurConnecte?.id||''))return '';
+    return '\n\nDétail : '+d.etape+' — '+d.message+(d.code?' ('+d.code+')':'');
+}
 let validationRetourInterventionEnCours = false;
 
 
@@ -6571,6 +6579,9 @@ async function synchroniserApresModification() {
 
     }
 
+    const proprietaireSynchronisation=String(utilisateurConnecte?.id||"");
+    dernierEchecSynchronisationPharmacie=null;
+    let envoiConfirme=false;
     demarrerIndicateurSynchronisation();
 
     try {
@@ -6580,6 +6591,7 @@ async function synchroniserApresModification() {
         try {
 
             await envoyerDonneesLocalesVersSupabase();
+            envoiConfirme=true;
             effacerModificationsEnAttente();
 
         } finally {
@@ -6590,6 +6602,7 @@ async function synchroniserApresModification() {
 
         // Une fois l'envoi terminé, on relit immédiatement la base centrale.
         // Cela évite qu'un iPhone/iPad garde une ancienne copie locale.
+        etapeSynchronisationPharmacie="Relecture après envoi confirmé";
         const donnees =
             await recupererDonneesSupabase();
 
@@ -6620,6 +6633,15 @@ async function synchroniserApresModification() {
         return true;
 
     } catch (erreur) {
+        dernierEchecSynchronisationPharmacie={proprietaire:proprietaireSynchronisation,etape:etapeSynchronisationPharmacie||'Envoi au serveur',message:String(erreur?.message||'Réponse du serveur indisponible.').slice(0,500),code:String(erreur?.code||'').slice(0,30)};
+        if(envoiConfirme){
+            // Les écritures sont confirmées. Une relecture échouée ne doit pas
+            // transformer cet acquittement en échec d'enregistrement.
+            signalerConnexionPrincipaleIndisponible(erreur);
+            console.warn('Envoi confirmé ; actualisation différée.',erreur);
+            return true;
+        }
+
 
         console.warn(
             "⚠️ La modification reste enregistrée localement et sera renvoyée plus tard.",
@@ -7323,9 +7345,10 @@ async function envoyerDonneesLocalesVersSupabase() {
     const supabase = obtenirClientSupabase();
 
     if (!supabase) {
-        return;
+        throw new Error("Serveur indisponible : le retour reste enregistré sur cet appareil.");
     }
 
+    etapeSynchronisationPharmacie = "Vérification de la session";
     const sessionEnvoi = await obtenirSessionPrincipaleValide(supabase);
     if (String(sessionEnvoi.user?.id || "") !== String(utilisateurConnecte?.id || "")) throw new Error("La session ne correspond pas aux données à envoyer");
     const auteurEnAttente = localStorage.getItem("cis_sync_proprietaire");
@@ -7333,6 +7356,7 @@ async function envoyerDonneesLocalesVersSupabase() {
 
     migrerIdentifiantsVersUUID();
 
+    etapeSynchronisationPharmacie = "Reprise des retours enregistrés localement";
     await migrerRetoursVersJournalStock(supabase);
     const ancienSnapshot = lireSnapshotSynchronisation();
 
@@ -7348,6 +7372,7 @@ async function envoyerDonneesLocalesVersSupabase() {
         })
         .filter(Boolean);
 
+    etapeSynchronisationPharmacie = "Enregistrement des catégories";
     if (categoriesLocales.length > 0) {
 
         const lignesCategories =
@@ -7387,6 +7412,7 @@ async function envoyerDonneesLocalesVersSupabase() {
         );
     });
 
+    etapeSynchronisationPharmacie = "Enregistrement du matériel";
     const lignesMateriels = materiels.map(function (materiel) {
 
         return {
@@ -7422,6 +7448,7 @@ async function envoyerDonneesLocalesVersSupabase() {
 
     }
 
+    etapeSynchronisationPharmacie = "Rattachement du matériel aux catégories";
     for (const materiel of materiels) {
 
         const idMateriel = String(materiel.id);
@@ -7473,6 +7500,7 @@ async function envoyerDonneesLocalesVersSupabase() {
      * de la table archives_historique.
      */
 
+    etapeSynchronisationPharmacie = "Enregistrement des retours";
     const lignesInterventions = historique.map(function (intervention) {
 
         return {
@@ -7502,6 +7530,7 @@ async function envoyerDonneesLocalesVersSupabase() {
 
     }
 
+    etapeSynchronisationPharmacie = "Enregistrement des consommations";
     const lignesConsommations = [];
 
     historique.forEach(function (intervention) {
@@ -7640,6 +7669,7 @@ async function envoyerDonneesLocalesVersSupabase() {
 
     }
 
+    etapeSynchronisationPharmacie = "Mise à jour des catégories supprimées";
     const nouvellesCategoriesMaj = new Set(
         categoriesLocales.map(function (nom) {
             return String(nom).trim().toLowerCase();
@@ -7668,6 +7698,7 @@ async function envoyerDonneesLocalesVersSupabase() {
 
     }
 
+    etapeSynchronisationPharmacie = "Confirmation des mouvements de stock";
     await synchroniserJournalStock(supabase);
     void envoyerNotificationsStockEnAttente();
 
@@ -12980,7 +13011,7 @@ async function validerRetourIntervention() {
         } else {
 
             alert(
-                "⚠️ Retour enregistré sur cet appareil, mais la synchronisation avec la base de données a échoué. Les données sont conservées et pourront être renvoyées."
+                "Retour conservé sur cet appareil. Son envoi au serveur reste en attente." + detailEchecSynchronisationPharmacie()
             );
 
         }
