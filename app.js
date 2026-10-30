@@ -6029,6 +6029,9 @@ function initialiserIndicateurSynchronisation() {
             border-radius: 50%;
         }
 
+        .historique-sans-reserve, .historique-sans-reserve * { color:#b71924 !important; }
+        .historique-sans-reserve { background:#fff0f0 !important; border:2px solid #bd252b !important; border-radius:14px; padding:16px; }
+
         .historique-total.historique-rupture-stock {
             background: #d71920 !important;
             border-color: #d71920 !important;
@@ -15710,8 +15713,9 @@ function afficherHistoriqueTotal() {
                         ) === 0;
 
 
+                    const sansReserve = ligne.materiel.gere_stock_pharmacie === false;
                     const classeAlerte =
-                        ruptureStock
+                        (ruptureStock || sansReserve)
                             ? " historique-rupture-stock"
                             : (
                                 stockMinimum
@@ -15772,7 +15776,9 @@ function afficherHistoriqueTotal() {
 
                                 <small>
                                     ${
-                                        ruptureStock
+                                        sansReserve
+                                            ? "Sans réserve pharmacie"
+                                            : ruptureStock
                                             ? "⛔ RUPTURE DE STOCK"
                                             : (
                                                 stockMinimum
@@ -15922,6 +15928,7 @@ function afficherDetailConsommation(
     );
 
 
+    const sansReserve = materiel.gere_stock_pharmacie === false;
     const stockMinimum =
         materiel.minimum > 0 &&
         materiel.stock <=
@@ -15947,7 +15954,7 @@ function afficherDetailConsommation(
 
             <div
                 class="
-                    detail-header
+                    detail-header ${sansReserve ? "historique-sans-reserve" : ""}
                     ${
                         stockMinimum
                         ?
@@ -15966,8 +15973,7 @@ function afficherDetailConsommation(
 
 
                 <span>
-                    Stock actuel :
-                    ${materiel.stock}
+                    ${sansReserve ? "Sans réserve pharmacie" : "Stock actuel : " + materiel.stock}
                 </span>
 
             </div>
@@ -15997,7 +16003,7 @@ function afficherDetailConsommation(
                 html += `
 
                     <div
-                        class="detail-historique"
+                        class="detail-historique ${sansReserve ? "historique-sans-reserve" : ""}"
                     >
 
                         <div>
@@ -16747,7 +16753,8 @@ function afficherDetailIntervention(
         intervention.consommations.forEach(function(consommation) {
             const materiel = materiels.find(m => String(m.id) === String(consommation.materielId));
             const stockMinimum = materiel && materiel.minimum > 0 && materiel.stock <= materiel.minimum;
-            html += `<div class="detail-historique ${stockMinimum ? "detail-stock-faible" : ""}"><div><strong>${echapperHTML(consommation.materiel)}</strong>${materiel ? `<span>Stock actuel : ${materiel.stock}</span>` : ""}</div><strong class="detail-quantite ${stockMinimum ? "texte-stock-faible" : ""}">${consommation.quantite}</strong></div>`;
+            const sansReserve = consommation.sansStockPharmacie === true || materiel?.gere_stock_pharmacie === false;
+            html += `<div class="detail-historique ${sansReserve ? "historique-sans-reserve" : stockMinimum ? "detail-stock-faible" : ""}"><div><strong>${echapperHTML(consommation.materiel)}</strong>${sansReserve ? '<span>Sans réserve pharmacie</span>' : materiel ? `<span>Stock actuel : ${materiel.stock}</span>` : ""}</div><strong class="detail-quantite ${stockMinimum && !sansReserve ? "texte-stock-faible" : ""}">${consommation.quantite}</strong></div>`;
         });
     }
     if (auteur || admin) {
@@ -18839,7 +18846,7 @@ function afficherFormulaireMateriel(
 
                 <label style="display:flex;align-items:center;gap:10px"><input id="gere-stock-pharmacie" type="checkbox" ${materiel?.gere_stock_pharmacie !== false ? 'checked' : ''} style="width:auto"> Géré dans le stock pharmacie</label>
                 <p>Sans réserve pharmacie : l’utilisation est signalée dans Suivi VSAV jusqu’au réarmement.</p>
-                <div id="vsav-lien-groupe"><label>Matériel correspondant dans l’inventaire VSAV<select id="inventaire-vsav-lien" style="display:block;width:100%;padding:12px;font-size:16px"><option value="">Aucun lien</option>${materiel?.inventaire_vsav_materiel_id?`<option selected value="${echapperHTML(materiel.inventaire_vsav_materiel_id)}">Correspondance enregistrée</option>`:''}</select></label><p id="vsav-lien-statut" role="status"></p></div>
+                <div id="vsav-lien-groupe"><label>Matériel correspondant dans l’inventaire VSAV<input type="hidden" id="inventaire-vsav-lien" value="${echapperHTML(materiel?.inventaire_vsav_materiel_id||'')}"></label><div id="vsav-lien-selecteur"></div><p id="vsav-lien-statut" role="status"></p></div>
                 <label>
                     Quantité en stock
                 </label>
