@@ -82,7 +82,10 @@
  // Compatibilité avec les pages déjà ouvertes : aucun chargement ne retire le bouton.
  function actionsChefDepuisTravail(id,host,proposer=false){if(!host||!proposer)return;if(!host.querySelector('button')){host.innerHTML='<button type="button" class="equipe-action-button" style="background:#b5232c!important;color:#fff!important;border:2px solid #b5232c!important;min-height:48px;padding:12px 18px;border-radius:10px;font-weight:800">Valider le travail</button>';}const b=host.querySelector('button');b.onclick=()=>validerDepuisTravail(id,b);}
 
- g.CISFicheGarde={ouvrir,exporterDepuisTravail,actionsChefDepuisTravail,validerDepuisTravail,initialiserExports,retirerSemaines(ids){if(!fond||!ids?.[semaine])return false;nettoyer();if(principal)void g.CISTravail?.ouvrir();return true;},async ouvrirDate(date){try{const id=await rpc('fiche_garde_pour_date',{p_date:date});await ouvrir(id);}catch(e){alert(e.message);}}};
+ function capturerNavigation(){collecter();return {cle:[semaine,vue,cleEdition].join(':'),semaine,vue,cleEdition,correction:correction?{...correction}:null,edits:JSON.parse(JSON.stringify(edits)),dirty,revision:donnees?.revision};}
+ async function preparerRetourNavigation(){if(dirty&&!await confirmer('Quitter sans enregistrer les modifications ?'))return false;nettoyer();return true;}
+ async function restaurerNavigation(n){nettoyer();await ouvrir(n.semaine,n.vue==='correction'?'recap':n.vue);if(!fond?.isConnected||!donnees)return;if(!donnees.valide&&donnees.revision===n.revision){edits=n.edits;dirty=n.dirty;}if(n.vue==='correction'&&donnees.document.lignes.some(l=>l.cle===n.cleEdition)){vue='correction';cleEdition=n.cleEdition;correction=n.correction;}rendre();}
+ g.CISFicheGarde={capturerNavigation,restaurerNavigation,preparerRetourNavigation,ouvrir,exporterDepuisTravail,actionsChefDepuisTravail,validerDepuisTravail,initialiserExports,retirerSemaines(ids){if(!fond||!ids?.[semaine])return false;nettoyer();if(principal)void g.CISTravail?.ouvrir();return true;},async ouvrirDate(date){try{const id=await rpc('fiche_garde_pour_date',{p_date:date});await ouvrir(id);}catch(e){alert(e.message);}}};
 })(globalThis);
 
 

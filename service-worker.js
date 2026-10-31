@@ -20,10 +20,10 @@ importScripts("./notifications-history.js?v=vsav-sans-stock-v1");
  * VERSION DU CACHE
  *
  * On passe à V4 pour forcer l'iPhone et l'iPad
- * à récupérer le nouvel app.js.
+ * à récupérer le nouvel app.js?v=retours-fiables-test-v1.
  */
 
-const CACHE_NAME = "cis-test-categories-deplacement-fluide-20261031-v2";
+const CACHE_NAME = "cis-test-retours-fiables-20261031-v1";
 
 
 /*
@@ -40,14 +40,14 @@ const FICHIERS_APPLICATION = ["./isolation-test.js?v=1","./maintenance-client.js
     "./vsav-sans-stock.js?v=selection-vsav-v2",
     "./suivi-vsav.js?v=selection-vsav-v2",
 
-    "./app.js?v=categories-deplacement-test-v1",
-    "./pharmacie-categories.js?v=deplacement-fluide-v2",
+    "./app.js?v=retours-fiables-test-v1",
+    "./pharmacie-categories.js?v=retours-fiables-test-v1",
     "./formations-commun.js",
-    "./formations.js",
+    "./formations.js?v=retours-fiables-test-v1",
     "./formations.css",
 
-    "./travail-equipe.js?v=retour-normal-20261028c",
-    "./fiche-garde.js?v=retour-normal-20261028c",
+    "./travail-equipe.js?v=retours-fiables-test-v1",
+    "./fiche-garde.js?v=retours-fiables-test-v1",
     "./fiche-garde-pdf.js",
     "./fiche-garde.css",
     "./fiche-fin-garde-modele.pdf",

@@ -138,5 +138,7 @@
  document.addEventListener('dragstart',e=>{if(e.target.closest('[data-pharma-ligne]'))e.preventDefault();});
  document.addEventListener('keydown',e=>{if(e.key==='Escape')finGeste();});window.addEventListener('blur',finGeste);document.addEventListener('visibilitychange',()=>{if(document.hidden)finGeste();});
 
- g.CISPharmaCategories={recevoir,chemin,arbre,blocs,ouvrir,ouvrirAction,lire,style};
+ function capturerNavigation(){const form=document.getElementById('pharma-cat-form'),etat=edit?{...edit}:null;if(form&&etat){etat.nom=form.elements.nom.value;etat.parent_id=form.elements.parent.value||null;}return {cle:etat?'edition:'+(etat.id||'nouvelle'):'liste',edit:etat,message};}
+ async function restaurerNavigation(n){finGeste();edit=n.edit?{...n.edit}:null;message=n.message||'';menuDeplacement=null;busy=false;render();const compte=uid();try{await actualiser();}catch(e){message=e.message||'Actualisation indisponible.';}if(uid()===compte&&document.querySelector('.pharma-cat-page'))render();}
+ g.CISPharmaCategories={capturerNavigation,restaurerNavigation,recevoir,chemin,arbre,blocs,ouvrir,ouvrirAction,lire,style};
 })(globalThis);
