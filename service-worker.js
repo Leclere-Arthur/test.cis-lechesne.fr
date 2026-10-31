@@ -23,7 +23,7 @@ importScripts("./notifications-history.js?v=vsav-sans-stock-v1");
  * à récupérer le nouvel app.js.
  */
 
-const CACHE_NAME = "cis-test-selection-vsav-20261030-v2";
+const CACHE_NAME = "cis-test-categories-deplacement-20261031-v1";
 
 
 /*
@@ -40,8 +40,8 @@ const FICHIERS_APPLICATION = ["./isolation-test.js?v=1","./maintenance-client.js
     "./vsav-sans-stock.js?v=selection-vsav-v2",
     "./suivi-vsav.js?v=selection-vsav-v2",
 
-    "./app.js?v=selection-vsav-test-v2",
-    "./pharmacie-categories.js?v=3",
+    "./app.js?v=categories-deplacement-test-v1",
+    "./pharmacie-categories.js?v=deplacement-v1",
     "./formations-commun.js",
     "./formations.js",
     "./formations.css",

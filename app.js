@@ -6899,7 +6899,7 @@ async function recupererDonneesSupabase() {
 
     await obtenirSessionPrincipaleValide(supabase);
     const resultats = await Promise.all([
-        supabase.from("categories").select("id,nom,parent_id"),
+        supabase.from("categories").select("id,nom,parent_id,ordre"),
         supabase
             .from("materiels")
             .select("id,nom,reference,description,stock,minimum,emplacement,gere_stock_pharmacie,inventaire_vsav_materiel_id"),
