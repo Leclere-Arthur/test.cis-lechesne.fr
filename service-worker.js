@@ -20,10 +20,10 @@ importScripts("./notifications-history.js?v=vsav-sans-stock-v1");
  * VERSION DU CACHE
  *
  * On passe à V4 pour forcer l'iPhone et l'iPad
- * à récupérer le nouvel app.js?v=retours-fiables-test-v1.
+ * à récupérer le nouvel app.js?v=retour-coffres-test-v2.
  */
 
-const CACHE_NAME = "cis-test-retours-fiables-20261031-v1";
+const CACHE_NAME = "cis-test-retour-coffres-20261031-v2";
 
 
 /*
@@ -40,7 +40,7 @@ const FICHIERS_APPLICATION = ["./isolation-test.js?v=1","./maintenance-client.js
     "./vsav-sans-stock.js?v=selection-vsav-v2",
     "./suivi-vsav.js?v=selection-vsav-v2",
 
-    "./app.js?v=retours-fiables-test-v1",
+    "./app.js?v=retour-coffres-test-v2",
     "./pharmacie-categories.js?v=retours-fiables-test-v1",
     "./formations-commun.js",
     "./formations.js?v=retours-fiables-test-v1",

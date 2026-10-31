@@ -781,12 +781,17 @@ function contexteModuleNavigation(app) {
             if(document.querySelector('.veh-photo-miniature'))void vehInventaireChargerPhotos();
         }};
     }
+    const erreurInventaire=app.querySelector('[data-veh-inventaire-erreur]');if(erreurInventaire)return {cle:'vehicule-erreur:'+erreurInventaire.dataset.vehInventaireErreur,restaurer:null};
     const demarrer=app.querySelector('[onclick^="vehInventaireCommencer("]');
     if(demarrer)return {cle:'vehicule:'+String(app.querySelector('h1,h2')?.textContent||''),restaurer:null};
     return null;
 }
+function pageNavigationTransitoire(app=document.getElementById('app')){
+ if(!app)return false;if(app.querySelector('[data-navigation-transitoire]'))return true;
+ const main=app.querySelector('main');return !!main&&!main.querySelector('button,a,input,select,textarea')&&[...main.querySelectorAll('p,[role="status"]')].some(n=>/^Chargement[ ….]/i.test(n.textContent.trim()));
+}
 function obtenirSignaturePageApplication() {
-    const app=document.getElementById('app');if(!app)return '';
+    const app=document.getElementById('app');if(!app||pageNavigationTransitoire(app))return '';
     const module=contexteModuleNavigation(app);if(module)return module.cle;
     const main=app.querySelector('main'),titre=String(app.querySelector('h1,h2')?.textContent||'').trim();
     if(!titre||/^(chargement|connexion)[.… ]*$/i.test(titre))return '';
@@ -796,10 +801,10 @@ function capturerEtatPageApplication() {
     const app=document.getElementById('app');if(!app)return null;
     const module=contexteModuleNavigation(app);
     return {html:app.innerHTML,noeuds:[...app.childNodes],scrollX:window.scrollX||0,scrollY:window.scrollY||0,
-        bodyClassName:document.body.className||'',signature:module?.cle||obtenirSignaturePageApplication(),
+        bodyClassName:document.body.className||'',signature:pageNavigationTransitoire(app)?'':module?.cle||obtenirSignaturePageApplication(),transitoire:pageNavigationTransitoire(app),
         proprietaire:String(utilisateurConnecte?.id||''),restaurer:module?.restaurer||null,
         actionLecture:null,
-        chargement:[...app.querySelectorAll('[role="status"],.garde-planning-attente,.veh-muted,h1,h2')].some(n=>/^(chargement|vérification|lecture des réalisations)/i.test(n.textContent.trim()))};
+        chargement:[...app.querySelectorAll('[role="status"],.garde-planning-attente,.veh-muted,h1,h2,p')].some(n=>/^(chargement|vérification|lecture des réalisations)/i.test(n.textContent.trim()))};
 }
 function memoriserTransitionNavigation() {
     if(restaurationNavigationEnCours)return;
@@ -848,6 +853,7 @@ function installerHistoriqueNavigationApplication(){
     },true);
 }
 async function retourPagePrecedente(bouton=null){
+    const retourPendantChargement=pageNavigationTransitoire()&&etatNavigationCourante?.signature?etatNavigationCourante:null;
     // La fiche conserve sa confirmation habituelle avant de quitter des modifications non enregistrées.
     if(document.getElementById('fiche-garde-page')&&window.CISFicheGarde?.preparerRetourNavigation){
         if(!await CISFicheGarde.preparerRetourNavigation())return;
@@ -856,7 +862,8 @@ async function retourPagePrecedente(bouton=null){
         if(vehInventaireSession&&!await afficherConfirmationCIS(VEH_INVENTAIRE_AVERTISSEMENT))return;
         vehInventaireSession=null;
     }
-    let precedent;do{precedent=historiqueNavigationApplication.pop();}while(precedent&&precedent.proprietaire!==String(utilisateurConnecte?.id||''));
+    let precedent=retourPendantChargement;
+    if(!precedent)do{precedent=historiqueNavigationApplication.pop();}while(precedent&&(precedent.transitoire||precedent.proprietaire!==String(utilisateurConnecte?.id||'')));
     if(!precedent){afficherPortailPrincipal();return;}
     const numero=++generationRetourNavigation,app=document.getElementById('app');if(!app)return;
     restaurationNavigationEnCours=true;actionOuvertureNavigation=null;etatNavigationCourante=precedent;
@@ -1029,7 +1036,7 @@ let minuteurVerificationMiseAJour =
 /*
  * VERSION DU FICHIER APP.JS
  * Cette valeur change à chaque nouvelle version que je te prépare.
- * Elle permet de détecter une nouvelle version même si seul app.js?v=retours-fiables-test-v1 change.
+ * Elle permet de détecter une nouvelle version même si seul app.js?v=retour-coffres-test-v2 change.
  */
 const VERSION_APPLICATION_JS =
     "2026-10-21-suppression-menage-v79";
@@ -1040,7 +1047,7 @@ async function verifierNouvelleVersionAppJs() {
 
         const url =
             new URL(
-                "./app.js?v=retours-fiables-test-v1",
+                "./app.js?v=retour-coffres-test-v2",
                 window.location.href
             );
 
@@ -1088,7 +1095,7 @@ async function verifierNouvelleVersionAppJs() {
     } catch (erreur) {
 
         console.warn(
-            "Vérification directe app.js?v=retours-fiables-test-v1 impossible :",
+            "Vérification directe app.js?v=retour-coffres-test-v2 impossible :",
             erreur
         );
 
@@ -1413,9 +1420,9 @@ async function verifierMiseAJourApplication(
     try {
 
         /*
-         * Contrôle direct de app.js?v=retours-fiables-test-v1 sur le réseau.
+         * Contrôle direct de app.js?v=retour-coffres-test-v2 sur le réseau.
          * Contrairement au Service Worker, ceci détecte aussi une mise à jour
-         * lorsque seul app.js?v=retours-fiables-test-v1 a changé sur GitHub.
+         * lorsque seul app.js?v=retour-coffres-test-v2 a changé sur GitHub.
          */
         const nouvelleVersionAppJs =
             await verifierNouvelleVersionAppJs();
@@ -1608,7 +1615,7 @@ async function appliquerMiseAJourApplication() {
     try {
 
         /*
-         * Si seul app.js?v=retours-fiables-test-v1 a changé, il n'y a pas forcément de nouveau
+         * Si seul app.js?v=retour-coffres-test-v2 a changé, il n'y a pas forcément de nouveau
          * Service Worker en attente. On vide alors les caches de l'application
          * et on recharge immédiatement la version publiée sur GitHub.
          */
@@ -1869,10 +1876,10 @@ async function initialiserSystemeMiseAJourApplication() {
     initialiserStyleMiseAJourApplication();
 
     /*
-     * IMPORTANT : la vérification directe de app.js?v=retours-fiables-test-v1 fonctionne même
+     * IMPORTANT : la vérification directe de app.js?v=retour-coffres-test-v2 fonctionne même
      * si le Service Worker n'est pas disponible ou rencontre un problème.
      * C'est ce qui permet d'afficher le bouton de mise à jour après une
-     * simple modification de app.js?v=retours-fiables-test-v1 sur GitHub.
+     * simple modification de app.js?v=retour-coffres-test-v2 sur GitHub.
      */
     async function verifierMaintenant() {
 
@@ -1958,7 +1965,7 @@ async function initialiserSystemeMiseAJourApplication() {
 
     /*
      * Le Service Worker reste un deuxième moyen de détecter une mise à jour,
-     * mais son absence ne bloque plus la vérification directe de app.js?v=retours-fiables-test-v1.
+     * mais son absence ne bloque plus la vérification directe de app.js?v=retour-coffres-test-v2.
      */
     if (!("serviceWorker" in navigator)) {
         return;
@@ -22480,6 +22487,7 @@ let vehInventaireSession = null;
 let vehInventaireCatalogue = [];
 let vehInventaireZones = [];
 let vehInventaireMateriels = [];
+let vehInventaireChargementActif = null;
 const vehInventaireHTML = valeur => echapperHTML(String(valeur ?? ""));
 // Photos configurées dans l'application Admin (bucket Supabase privé).
 const VEH_PHOTO_BUCKET = "cis-photos-inventaire";
@@ -22576,18 +22584,35 @@ async function vehInventaireOuvrirVehicule(id){
 }
 async function vehInventaireCommencer(id){
  const v=vehInventaireCatalogue.find(x=>x.id===id);if(!v)return;
- vehInventaireAfficher(`<h1>${vehInventaireHTML(v.nom)}</h1><p>Chargement des coffres…</p>`);
+ if(vehInventaireChargementActif)vehInventaireChargementActif.abort();
+ const ac=new AbortController(),compte=String(utilisateurConnecte?.id||'');vehInventaireChargementActif=ac;
+ vehInventaireAfficher(`<div data-navigation-transitoire="inventaire-coffres" data-vehicule-id="${vehInventaireHTML(id)}"><button type="button" class="retour-button veh-retour" onclick="vehInventaireOuvrirVehicule('${id}')">← Retour</button><h1>${vehInventaireHTML(v.nom)}</h1><p role="status">Chargement des coffres…</p></div>`);
+ const page=document.querySelector('[data-navigation-transitoire="inventaire-coffres"]');
+ const active=()=>page?.isConnected&&!ac.signal.aborted&&String(utilisateurConnecte?.id||'')===compte;
+ const observation=new MutationObserver(()=>{if(!page?.isConnected)ac.abort();});observation.observe(document.getElementById('app'),{childList:true});
+ let timer,delaiDepasse=false;
  try{
-  const sb=obtenirClientSupabase();
-  const z=await sb.from("cis_vehicule_zones").select("id,vehicule_id,nom,cote,ordre,actif,photo_path").eq("vehicule_id",id).eq("actif",true).order("ordre");if(z.error)throw z.error;
-  const zones=z.data||[];if(!zones.length){vehInventaireAfficher(`<button class="retour-button veh-retour" onclick="vehInventaireOuvrirVehicule('${id}')">← Retour</button><h1>${vehInventaireHTML(v.nom)}</h1><p>Configure d'abord les coffres dans l'application Admin.</p>`);return;}
-  const m=await sb.from("cis_vehicule_materiels").select("id,zone_id,nom,quantite,etat_reference,notes,ordre,photo_path").in("zone_id",zones.map(x=>x.id)).order("ordre");if(m.error)throw m.error;
-  vehInventaireZones=zones;vehInventaireMateriels=m.data||[];
-  const signalements=await sb.rpc("inventaires_anomalies",{p_vehicule:id});if(signalements.error)throw signalements.error;
-  const personnels=listePersonnelAvecAuteur(await chargerUtilisateursEspaceGarde());
-  vehInventaireSession={vehicule:{id:v.id,nom:v.nom,code:v.code},controles:{},anomalies:signalements.data||[],participants:personnesAvecAuteur([]),personnels};
+  const sb=obtenirClientSupabase();if(!sb)throw Error('Connexion Supabase indisponible.');
+  const charger=async()=>{
+   const z=await sb.from('cis_vehicule_zones').select('id,vehicule_id,nom,cote,ordre,actif,photo_path').eq('vehicule_id',id).eq('actif',true).order('ordre').abortSignal(ac.signal);if(z.error)throw z.error;
+   if(!active())return null;const zones=z.data||[];if(!zones.length)return {zones,materiels:[],anomalies:[],personnels:[]};
+   const m=await sb.from('cis_vehicule_materiels').select('id,zone_id,nom,quantite,etat_reference,notes,ordre,photo_path').in('zone_id',zones.map(x=>x.id)).order('ordre').abortSignal(ac.signal);if(m.error)throw m.error;
+   if(!active())return null;
+   const signalements=await sb.rpc('inventaires_anomalies',{p_vehicule:id}).abortSignal(ac.signal);if(signalements.error)throw signalements.error;
+   if(!active())return null;
+   const personnels=listePersonnelAvecAuteur(await chargerUtilisateursEspaceGarde());
+   return {zones,materiels:m.data||[],anomalies:signalements.data||[],personnels};
+  };
+  const resultat=await Promise.race([charger(),new Promise((_,rej)=>{timer=setTimeout(()=>{delaiDepasse=true;ac.abort();rej(Error('Le chargement des coffres prend trop de temps. Vérifie la connexion puis réessaie.'));},15000);})]);
+  if(!resultat||!active())return;
+  if(!resultat.zones.length){vehInventaireAfficher(`<button class="retour-button veh-retour" onclick="vehInventaireOuvrirVehicule('${id}')">← Retour</button><h1>${vehInventaireHTML(v.nom)}</h1><p>Configure d’abord les coffres dans l’application Admin.</p>`);return;}
+  vehInventaireZones=resultat.zones;vehInventaireMateriels=resultat.materiels;
+  vehInventaireSession={vehicule:{id:v.id,nom:v.nom,code:v.code},controles:{},anomalies:resultat.anomalies,participants:personnesAvecAuteur([]),personnels:resultat.personnels};
   vehInventaireAfficherZones();
- }catch(e){vehInventaireAfficher(`<button class="retour-button veh-retour" onclick="vehInventaireOuvrirVehicule('${id}')">← Retour</button><h1>Erreur de chargement</h1><p>${vehInventaireHTML(e.message)}</p>`);}
+ }catch(e){
+  if(!page?.isConnected||String(utilisateurConnecte?.id||'')!==compte)return;
+  vehInventaireAfficher(`<div data-veh-inventaire-erreur="${vehInventaireHTML(id)}"><button class="retour-button veh-retour" onclick="vehInventaireOuvrirVehicule('${id}')">← Retour</button><h1>${vehInventaireHTML(v.nom)}</h1><p role="status">${vehInventaireHTML(delaiDepasse?'Le serveur ne répond pas. Vérifie la connexion puis réessaie.':e.message||'Chargement impossible.')}</p><button type="button" class="veh-action" onclick="vehInventaireCommencer('${id}')">Réessayer</button></div>`);
+ }finally{clearTimeout(timer);observation.disconnect();if(vehInventaireChargementActif===ac)vehInventaireChargementActif=null;}
 }
 function vehInventaireAfficherZones(){
  const session=vehInventaireSession;if(!session)return;initialiserStyleEspaceGardeUtilisateur();initialiserStyleActionsEquipe();
