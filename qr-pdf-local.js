@@ -1265,9 +1265,10 @@ function rect(x,y,w,h,fill){return (fill?'0 g ':'0.75 G 0.35 w ')+x.toFixed(2)+'
 function qrModel(value){const qr=new QRCode(0,1);qr.addData(String(value));qr.make();return qr;}
 function makePDF(codes){const streams=[];for(let start=0;start<codes.length;start+=15){let out='';for(let k=start;k<Math.min(start+15,codes.length);k++){
 const index=k-start,col=index%3,row=Math.floor(index/3),x=mm(10+col*65),y=PAGE_H-mm(11+row*56+52);
-out+=rect(x,y,mm(60),mm(52),false);const qr=qrModel(codes[k]),size=qr.getModuleCount(),pitch=mm(40)/(size+8),ox=x+mm(10)+pitch*4,oy=y+mm(10)+pitch*4;
+out+=rect(x,y,mm(60),mm(52),false);const entry=codes[k],code=typeof entry==='string'?entry:entry.code,used=typeof entry==='object'&&entry.etat!=='vierge';const qr=qrModel(code),size=qr.getModuleCount(),pitch=mm(40)/(size+8),ox=x+mm(10)+pitch*4,oy=y+mm(10)+pitch*4;
 for(let r=0;r<size;r++)for(let c=0;c<size;c++)if(qr.isDark(r,c))out+=rect(ox+c*pitch,oy+(size-r-1)*pitch,pitch+.015,pitch+.015,true);
-out+=pdfText('CIS LE CHESNE',x+mm(19),y+mm(6),7,true);out+=pdfText(String(codes[k]),x+mm(4),y+mm(3),5.4,false);
+out+=pdfText('CIS LE CHESNE',x+mm(19),y+mm(6),7,true);out+=pdfText(String(code),x+mm(4),y+mm(3),5.4,false);
+if(used){const x1=x+mm(5),y1=y+mm(8),x2=x+mm(55),y2=y+mm(48);out+='1 0 0 RG 2.5 w '+x1.toFixed(2)+' '+y1.toFixed(2)+' m '+x2.toFixed(2)+' '+y2.toFixed(2)+' l S\n';out+='1 0 0 rg '+(x+mm(6)).toFixed(2)+' '+(y+mm(23)).toFixed(2)+' '+mm(48).toFixed(2)+' '+mm(8).toFixed(2)+' re f\n';out+='1 1 1 rg '+pdfText('DEJA ATTRIBUEE',x+mm(11),y+mm(26),9,true)+'0 g 0 G\n';}
 }streams.push(out);}
 const objs=[null],add=s=>(objs.push(s),objs.length-1),catalog=add(''),pages=add(''),font1=add('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>'),font2=add('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>'),refs=[];
 for(const s of streams){const content=add('<< /Length '+new TextEncoder().encode(s).length+' >>\nstream\n'+s+'endstream');refs.push(add('<< /Type /Page /Parent '+pages+' 0 R /MediaBox [0 0 '+PAGE_W.toFixed(2)+' '+PAGE_H.toFixed(2)+'] /Resources << /Font << /F1 '+font1+' 0 R /F2 '+font2+' 0 R >> >> /Contents '+content+' 0 R >>'));}
