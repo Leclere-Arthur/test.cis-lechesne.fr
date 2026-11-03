@@ -107,9 +107,36 @@ async function ouvrirAvance(){
  await rechercherHistorique();
 }
 async function rechercherHistorique(){try{const q=document.getElementById('cisqr-adv-search')?.value||'';const rows=await rpc('cis_qr_historique_rechercher',{p_recherche:q});const host=document.getElementById('cisqr-adv-results');if(!host)return;host.innerHTML=rows.length?rows.map(x=>`<div class="cisqr-label"><strong>${esc(x.materiel||'Matériel')} — ${esc(x.unite||'Unité non renseignée')}</strong><p><code>${esc(x.code)}</code> · ${esc(x.etat)} · ${esc(x.emplacement||'—')}</p><button data-cisqr-hist="${esc(x.code)}">Voir la fiche complète</button></div>`).join(''):'Aucun résultat.';host.querySelectorAll('[data-cisqr-hist]').forEach(b=>b.onclick=()=>void afficherHistorique(b.dataset.cisqrHist));}catch(e){setStatut('cisqr-adv-status',erreur(e),true);}}
-async function afficherHistorique(code){try{const h=await rpc('cis_qr_historique',{p_code:code}),f=h.fiche,host=document.getElementById('cisqr-adv-detail');if(!host)return;const date=d=>d?new Date(d).toLocaleString('fr-FR'):'—';const value=x=>x==null?'—':typeof x==='object'?JSON.stringify(x):String(x);
- host.innerHTML=`<h2>Fiche individuelle — ${esc(f.materiel||'Matériel')}</h2><p><b>Unité :</b> ${esc(f.unite||'Non renseignée (ancienne attribution)')}</p><p><b>QR :</b> <code>${esc(f.code)}</code></p><p><b>État :</b> ${esc(f.etat)} · <b>Emplacement :</b> ${esc(f.emplacement||'—')}</p><p><b>Lot :</b> ${esc(f.numero_lot||'—')} · <b>Péremption :</b> ${esc(f.date_peremption||'—')}</p><p><b>Attribué le :</b> ${esc(date(f.attribue_le))} · <b>Identifiant utilisateur :</b> ${esc(f.attribue_par||'—')}</p><h3>Historique chronologique (${h.evenements.length})</h3>${h.evenements.map(e=>`<div class="cisqr-label"><b>${esc(date(e.date))} — ${esc(e.nature)}</b><p>Utilisateur : <code>${esc(e.acteur_id||'Non enregistré')}</code>${e.numero_intervention?' · Intervention n° '+esc(e.numero_intervention):''}</p><details><summary>Détails du mouvement</summary><pre style="white-space:pre-wrap;overflow-wrap:anywhere">Avant : ${esc(value(e.ancien))}
-Après : ${esc(value(e.nouveau))}</pre></details></div>`).join('')||'<p>Aucun événement enregistré depuis la mise en place du journal avancé.</p>'}`;
+function cisqrDate(d){if(!d)return '—';const x=new Date(d);return Number.isNaN(x.getTime())?'—':x.toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});}
+function cisqrJour(d){if(!d)return '—';const x=new Date(d);return Number.isNaN(x.getTime())?'—':x.toLocaleDateString('fr-FR');}
+function cisqrLieu(v){return ({vsav:'VSAV',pharmacie:'Réserve pharmacie',sorti:'Sorti du VSAV',utilise:'Utilisé',attribuee:'Attribué',vierge:'Vierge',utilisee:'Utilisé'})[v]||v||'Non renseigné';}
+function cisqrNomUtilisateur(id){
+ if(!id)return 'Utilisateur non renseigné';
+ const pools=[typeof utilisateurs!=='undefined'?utilisateurs:null,typeof listeUtilisateurs!=='undefined'?listeUtilisateurs:null];
+ for(const pool of pools){if(!Array.isArray(pool))continue;const u=pool.find(x=>String(x.id)===String(id)||String(x.user_id)===String(id));if(u){const n=[u.prenom,u.nom].filter(Boolean).join(' ').trim();if(n)return n;if(u.nom_complet)return u.nom_complet;}}
+ if(String(uid())===String(id)&&typeof utilisateurConnecte!=='undefined'){const u=utilisateurConnecte;const n=[u.prenom,u.nom].filter(Boolean).join(' ').trim();if(n)return n;}
+ return 'Utilisateur non identifié';
+}
+function cisqrNature(n){return ({attribution:['QR code attribué','tag','attribution'],utilisation:['Matériel utilisé','check','utilisation'],deplacement:['Matériel déplacé','move','deplacement'],reapprovisionnement:['Matériel réapprovisionné','plus','reapprovisionnement'],rearmement:['Matériel réarmé','plus','reapprovisionnement'],modification:['Fiche modifiée','edit','modification']})[n]||[String(n||'Mouvement').replaceAll('_',' '),'info','modification'];}
+function cisqrDetailMouvement(e){
+ const avant=e.ancien&&typeof e.ancien==='object'?e.ancien:{};const apres=e.nouveau&&typeof e.nouveau==='object'?e.nouveau:{};
+ const parts=[];
+ if(avant.emplacement!==apres.emplacement&&apres.emplacement)parts.push((avant.emplacement?cisqrLieu(avant.emplacement)+' → ':'')+cisqrLieu(apres.emplacement));
+ if(apres.numero_lot&&avant.numero_lot!==apres.numero_lot)parts.push('Lot : '+apres.numero_lot);
+ if(apres.date_peremption&&avant.date_peremption!==apres.date_peremption)parts.push('Péremption : '+cisqrJour(apres.date_peremption));
+ if(apres.commentaire)parts.push('Commentaire : '+apres.commentaire);
+ return parts;
+}
+async function afficherHistorique(code){try{
+ const h=await rpc('cis_qr_historique',{p_code:code}),f=h.fiche,host=document.getElementById('cisqr-adv-detail');if(!host)return;
+ const etat=String(f.etat||'').toLowerCase();const statut=etat==='utilisee'?'Utilisé':etat==='attribuee'?'En service':etat==='vierge'?'Vierge':cisqrLieu(etat);
+ const events=Array.isArray(h.evenements)?h.evenements:[];
+ host.innerHTML=`<div class="cisqr-fiche-head"><div><h2>${esc(f.materiel||'Matériel')}</h2><p>Fiche individuelle ${f.unite?'— '+esc(f.unite):''}</p></div><span class="cisqr-etat ${etat==='utilisee'?'cisqr-etat-sorti':etat==='attribuee'?'cisqr-etat-actif':''}">${esc(statut)}</span></div>
+ <div class="cisqr-fiche-grid"><div><small>Emplacement</small><strong>${esc(cisqrLieu(f.emplacement))}</strong></div><div><small>Péremption</small><strong>${esc(cisqrJour(f.date_peremption))}</strong></div><div><small>Numéro de lot</small><strong>${esc(f.numero_lot||'Non renseigné')}</strong></div><div><small>Unité</small><strong>${esc(f.unite||'Non renseignée')}</strong></div></div>
+ <div class="cisqr-ref"><div><small>Référence QR</small><strong>${esc(f.code)}</strong></div><button type="button" id="cisqr-copy-ref">Copier</button></div>
+ <h3 class="cisqr-historique-titre">Historique du matériel <span>(${events.length})</span></h3>
+ <div class="cisqr-timeline">${events.map(e=>{const [titre,icone,classe]=cisqrNature(e.nature),details=cisqrDetailMouvement(e);return `<article class="cisqr-event cisqr-event-${classe}"><div class="cisqr-event-icon">${esc(icone==='check'?'✓':icone==='tag'?'#':icone==='move'?'↔':icone==='plus'?'+':'i')}</div><div class="cisqr-event-body"><div class="cisqr-event-title"><strong>${esc(titre)}</strong><time>${esc(cisqrDate(e.date))}</time></div>${e.numero_intervention?`<p><b>Intervention n° ${esc(e.numero_intervention)}</b></p>`:''}${details.map(d=>`<p>${esc(d)}</p>`).join('')}<small>Par ${esc(cisqrNomUtilisateur(e.acteur_id))}</small></div></article>`;}).join('')||'<p>Aucun mouvement enregistré.</p>'}</div>`;
+ host.querySelector('#cisqr-copy-ref').onclick=async()=>{try{await navigator.clipboard.writeText(f.code);const b=host.querySelector('#cisqr-copy-ref');if(b)b.textContent='Copié';}catch(_){alert('Référence : '+f.code);}};
  host.scrollIntoView({behavior:'smooth',block:'start'});
  }catch(e){setStatut('cisqr-adv-status',erreur(e),true);}}
 function injectAdmin(){if(!isAdmin())return;const menu=document.querySelector('.menu-administration');if(!menu||menu.querySelector('[data-cisqr-menu]'))return;const b=document.createElement('button');b.type='button';b.className='menu-button';b.dataset.cisqrMenu='1';b.innerHTML='<span class="menu-icon">▦</span><span><strong>Traçabilité QR code (TEST)</strong><small>Générer des étiquettes, PDF, attribution et suivi</small></span>';b.onclick=ouvrir;menu.appendChild(b);}
