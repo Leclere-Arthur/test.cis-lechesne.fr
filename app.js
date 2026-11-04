@@ -1036,10 +1036,10 @@ let minuteurVerificationMiseAJour =
 /*
  * VERSION DU FICHIER APP.JS
  * Cette valeur change à chaque nouvelle version que je te prépare.
- * Elle permet de détecter une nouvelle version même si seul app.js?v=qr-classique-20261104-v2 change.
+ * Elle permet de détecter une nouvelle version même si seul app.js?v=retour-coffres-test-v2 change.
  */
 const VERSION_APPLICATION_JS =
-    "2026-11-04-qr-classique-test-v2";
+    "2026-11-04-admin-pharma-materiel-test-v1";
 
 async function verifierNouvelleVersionAppJs() {
 
@@ -1047,7 +1047,7 @@ async function verifierNouvelleVersionAppJs() {
 
         const url =
             new URL(
-                "./app.js?v=qr-classique-20261104-v2",
+                "./app.js?v=retour-coffres-test-v2",
                 window.location.href
             );
 
@@ -1095,7 +1095,7 @@ async function verifierNouvelleVersionAppJs() {
     } catch (erreur) {
 
         console.warn(
-            "Vérification directe app.js?v=qr-classique-20261104-v2 impossible :",
+            "Vérification directe app.js?v=retour-coffres-test-v2 impossible :",
             erreur
         );
 
@@ -1420,9 +1420,9 @@ async function verifierMiseAJourApplication(
     try {
 
         /*
-         * Contrôle direct de app.js?v=qr-classique-20261104-v2 sur le réseau.
+         * Contrôle direct de app.js?v=retour-coffres-test-v2 sur le réseau.
          * Contrairement au Service Worker, ceci détecte aussi une mise à jour
-         * lorsque seul app.js?v=qr-classique-20261104-v2 a changé sur GitHub.
+         * lorsque seul app.js?v=retour-coffres-test-v2 a changé sur GitHub.
          */
         const nouvelleVersionAppJs =
             await verifierNouvelleVersionAppJs();
@@ -1615,7 +1615,7 @@ async function appliquerMiseAJourApplication() {
     try {
 
         /*
-         * Si seul app.js?v=qr-classique-20261104-v2 a changé, il n'y a pas forcément de nouveau
+         * Si seul app.js?v=retour-coffres-test-v2 a changé, il n'y a pas forcément de nouveau
          * Service Worker en attente. On vide alors les caches de l'application
          * et on recharge immédiatement la version publiée sur GitHub.
          */
@@ -1876,10 +1876,10 @@ async function initialiserSystemeMiseAJourApplication() {
     initialiserStyleMiseAJourApplication();
 
     /*
-     * IMPORTANT : la vérification directe de app.js?v=qr-classique-20261104-v2 fonctionne même
+     * IMPORTANT : la vérification directe de app.js?v=retour-coffres-test-v2 fonctionne même
      * si le Service Worker n'est pas disponible ou rencontre un problème.
      * C'est ce qui permet d'afficher le bouton de mise à jour après une
-     * simple modification de app.js?v=qr-classique-20261104-v2 sur GitHub.
+     * simple modification de app.js?v=retour-coffres-test-v2 sur GitHub.
      */
     async function verifierMaintenant() {
 
@@ -1965,7 +1965,7 @@ async function initialiserSystemeMiseAJourApplication() {
 
     /*
      * Le Service Worker reste un deuxième moyen de détecter une mise à jour,
-     * mais son absence ne bloque plus la vérification directe de app.js?v=qr-classique-20261104-v2.
+     * mais son absence ne bloque plus la vérification directe de app.js?v=retour-coffres-test-v2.
      */
     if (!("serviceWorker" in navigator)) {
         return;
@@ -14756,53 +14756,6 @@ async function validerReapprovisionnementAdministration() {
         return;
     }
 
-    // TEST : les matériels suivis par QR passent obligatoirement par une fiche par unité.
-    // Ne jamais les ajouter en bloc : une unité = un QR unique et une destination.
-    const ajoutsClassiques = new Map();
-    const ajoutsQR = new Map();
-    const moduleQR = window.CISQRReapproClassique;
-    for (const [id, quantite] of ajouts.entries()) {
-        if (moduleQR && await moduleQR.estSuivi(id)) ajoutsQR.set(id, quantite);
-        else ajoutsClassiques.set(id, quantite);
-    }
-    if (ajoutsQR.size && !moduleQR) {
-        alert('Module QR indisponible : réapprovisionnement non effectué.');
-        return;
-    }
-    let unitesQRAjoutees = 0;
-    for (const [id, quantite] of ajoutsQR.entries()) {
-        const resultat = await moduleQR.enregistrer(id, quantite, async () => {
-            const m = materiels.find(item => String(item.id) === String(id));
-            if (!m) throw Error('Matériel introuvable.');
-            const ancienStock = Number(m.stock || 0);
-            m.stock = ancienStock + 1;
-            preparerNotificationStock(m, ancienStock);
-            sauvegarderToutesLesDonnees();
-            marquerModificationsEnAttente();
-            unitesQRAjoutees++;
-        });
-        if (!resultat.termine) {
-            // Les QR déjà confirmés restent acquis, ainsi que les incréments locaux associés.
-            if (unitesQRAjoutees) {
-                try { await synchroniserApresModification(); } catch (e) { console.warn('Synchronisation QR différée', e); }
-            }
-            alert(`${resultat.enregistrees} unité(s) QR enregistrée(s) sur ${resultat.total}. Les unités restantes ne sont pas ajoutées au stock.`);
-            afficherReapprovisionnementAdministration();
-            return;
-        }
-    }
-    // Les matériels sans QR conservent le comportement habituel.
-    ajouts.clear();
-    for (const [id, q] of ajoutsClassiques.entries()) ajouts.set(id, q);
-    if (!ajouts.size) {
-        if (unitesQRAjoutees) {
-            try { await synchroniserApresModification(); } catch (e) { console.warn('Synchronisation QR différée', e); }
-            alert(`${unitesQRAjoutees} unité(s) QR enregistrée(s) individuellement.`);
-        }
-        afficherReapprovisionnementAdministration();
-        return;
-    }
-
     const lignesConfirmation =
         Array.from(ajouts.entries())
             .map(
@@ -16868,41 +16821,14 @@ function afficherMenuAdministration() {
                 </button>
 
                 ${
-                    utilisateurAPermission("acces_ajout_materiel")
+                    ["acces_ajout_materiel", "acces_gestion_materiel", "acces_gestion_categories"]
+                        .some(permission => utilisateurAPermission(permission))
                         ? `
-                            <button class="menu-button" onclick="ajouterMateriel()">
-                                <span class="menu-icon">➕</span>
-                                <span>
-                                    <strong>Ajouter du matériel</strong>
-                                    <small>Créer un nouveau matériel</small>
-                                </span>
-                            </button>
-                        `
-                        : ""
-                }
-
-                ${
-                    utilisateurAPermission("acces_gestion_materiel")
-                        ? `
-                            <button class="menu-button" onclick="gestionMateriels()">
+                            <button class="menu-button" onclick="afficherRubriqueMaterielAdministration()">
                                 <span class="menu-icon">📦</span>
                                 <span>
-                                    <strong>Gestion du matériel</strong>
-                                    <small>Modifier ou supprimer</small>
-                                </span>
-                            </button>
-                        `
-                        : ""
-                }
-
-                ${
-                    utilisateurAPermission("acces_gestion_categories")
-                        ? `
-                            <button class="menu-button" onclick="gestionCategories()">
-                                <span class="menu-icon">📂</span>
-                                <span>
-                                    <strong>Gestion des catégories</strong>
-                                    <small>Créer, modifier ou supprimer</small>
+                                    <strong>Matériel</strong>
+                                    <small>Ajouter, gérer le matériel et les catégories</small>
                                 </span>
                             </button>
                         `
@@ -16950,6 +16876,40 @@ function afficherMenuAdministration() {
 
     initialiserStylesReapprovisionnementArchive();
 
+}
+
+/* Sous-rubrique Matériel de l'administration pharmacie. */
+function afficherRubriqueMaterielAdministration() {
+    if (!verifierPermissionOuRetourAccueil("acces_administration")) return;
+    if (!["acces_ajout_materiel", "acces_gestion_materiel", "acces_gestion_categories"]
+        .some(permission => utilisateurAPermission(permission))) {
+        afficherMenuAdministration();
+        return;
+    }
+    document.getElementById("app").innerHTML = `
+        <main class="page navigation-fixe-page">
+            <button class="retour-button" onclick="afficherMenuAdministration()">← Retour</button>
+            <h2>Matériel</h2>
+            <div class="menu-administration">
+                ${utilisateurAPermission("acces_ajout_materiel") ? `
+                    <button class="menu-button" onclick="ajouterMateriel()">
+                        <span class="menu-icon">➕</span>
+                        <span><strong>Ajouter du matériel</strong><small>Créer un nouveau matériel</small></span>
+                    </button>` : ""}
+                ${utilisateurAPermission("acces_gestion_materiel") ? `
+                    <button class="menu-button" onclick="gestionMateriels()">
+                        <span class="menu-icon">📦</span>
+                        <span><strong>Gestion du matériel</strong><small>Modifier ou supprimer</small></span>
+                    </button>` : ""}
+                ${utilisateurAPermission("acces_gestion_categories") ? `
+                    <button class="menu-button" onclick="gestionCategories()">
+                        <span class="menu-icon">📂</span>
+                        <span><strong>Gestion des catégories</strong><small>Créer, modifier ou supprimer</small></span>
+                    </button>` : ""}
+            </div>
+        </main>
+        ${navigationPrincipale("pharmacie", "pharmacie")}
+    `;
 }
 
 /* =========================================================
