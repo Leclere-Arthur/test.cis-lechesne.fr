@@ -39,7 +39,7 @@ async function scanner(callback){
   await load('https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js',()=>typeof g.Html5Qrcode==='function');
   if(done)return;
   const options={fps:12,aspectRatio:1.3,disableFlip:false};
-  const reader=new g.Html5Qrcode('cisqr-camera',{verbose:false});state.scanner=reader;
+  const reader=new g.Html5Qrcode('cisqr-camera',{verbose:false,formatsToSupport:[g.Html5QrcodeSupportedFormats.QR_CODE]});state.scanner=reader;
   await reader.start({facingMode:'environment'},options,code=>void found(code),()=>{});
   if(backdrop.isConnected)backdrop.querySelector('#cisqr-camera-status').textContent='Caméra activée — lecture automatique.';
  }catch(e){if(!done&&backdrop.isConnected){backdrop.querySelector('#cisqr-camera-status').textContent='Caméra indisponible : '+erreur(e)+'. Saisie manuelle possible.';}}
@@ -51,7 +51,7 @@ async function ouvrir(){
  shell('Traçabilité QR code',`<section class="cisqr-panel"><h2>Générer des étiquettes vierges</h2><div class="cisqr-row"><label for="cisqr-qt">Quantité</label><select id="cisqr-qt"><option>10</option><option>25</option><option selected>50</option><option>100</option></select><button class="cisqr-main" id="cisqr-generer">Générer le lot</button></div><p>Les identifiants sont réservés dans Supabase avant le téléchargement du PDF.</p><p id="cisqr-generation-statut" class="cisqr-status"></p></section><section class="cisqr-panel"><button id="cisqr-avance" class="cisqr-main">Traçabilité avancée</button> <button id="cisqr-reappro">Réapprovisionnement QR (TEST)</button></section><section class="cisqr-panel"><h2>Lots déjà créés</h2><div id="cisqr-lots">Chargement…</div></section><section class="cisqr-panel"><h2>Attribuer ou déplacer une étiquette</h2><div class="cisqr-row"><button id="cisqr-assigner" class="cisqr-main">Scanner une étiquette vierge</button><button id="cisqr-deplacer">Déplacer un exemplaire (stock / VSAV)</button></div></section><section class="cisqr-panel"><h2>Matériels suivis et manquants</h2><div id="cisqr-materiels">Chargement…</div></section>`);
  document.getElementById('cisqr-generer').onclick=generer;
  document.getElementById('cisqr-avance').onclick=()=>void ouvrirAvance();
- document.getElementById('cisqr-reappro').onclick=()=>void choisirUnitePuisScanner(true);
+ document.getElementById('cisqr-reappro').onclick=()=>void reapprovisionnerParUnite();
  document.getElementById('cisqr-assigner').onclick=()=>void choisirUnitePuisScanner(false);
  document.getElementById('cisqr-deplacer').onclick=()=>void scanner(async code=>{const f=await rpc('cis_qr_fiche',{p_code:code});if(!f||f.etat!=='attribuee')throw Error('QR non attribué');const lieu=f.emplacement==='vsav'?'pharmacie':'vsav';if(!confirm('Déplacer '+f.nom+' ('+code+') vers '+lieu.toUpperCase()+' ?'))return;await rpc('cis_qr_deplacer',{p_code:code,p_emplacement:lieu});alert('Déplacement enregistré.');await afficherProduits();});
  try{await config(true);await Promise.all([chargerLots(),afficherProduits()]);}catch(e){setStatut('cisqr-generation-statut',erreur(e),true);document.getElementById('cisqr-lots').textContent='Installation SQL requise pour activer les QR codes.';}
@@ -66,6 +66,106 @@ async function chargerLots(){const el=document.getElementById('cisqr-lots');if(!
 async function afficherProduits(){const el=document.getElementById('cisqr-materiels');if(!el)return;const r=await rpc('cis_qr_suivi_lire');const liste=typeof materiels!=='undefined'?materiels.filter(x=>estSuivi(x.id)):[];el.innerHTML=liste.length?liste.map(m=>{const manque=(r||[]).find(q=>q.materiel_id===m.id)?.manquant||0;return `<div class="cisqr-label"><strong>${esc(m.nom)}</strong><span>QR actifs · Manquants VSAV : <b class="${manque?'cisqr-error':''}">${manque}</b></span><div class="cisqr-row"><button data-assign-id="${esc(m.id)}">Attribuer QR</button><button data-list-id="${esc(m.id)}">Voir les exemplaires</button></div><div id="cisqr-sub-${esc(m.id)}"></div></div>`;}).join(''):'Aucun produit n’a été activé pour le suivi QR. Active un produit depuis Gestion du matériel → Modifier.';el.querySelectorAll('[data-assign-id]').forEach(b=>b.onclick=()=>void attribuerMateriel(b.dataset.assignId));el.querySelectorAll('[data-list-id]').forEach(b=>b.onclick=()=>void afficherExemplaires(b.dataset.listId));}
 async function afficherExemplaires(id){const box=document.getElementById('cisqr-sub-'+id);if(!box)return;box.textContent='Chargement…';try{const data=await rpc('cis_qr_exemplaires_lire',{p_materiel:id});box.innerHTML=(data||[]).map(x=>`<p class="cisqr-card-detail"><code>${esc(x.code)}</code> — ${esc(x.emplacement||x.etat)} — Péremption : ${esc(x.peremption||'non renseignée')} — Lot : ${esc(x.lot||'—')}</p>`).join('')||'Aucun exemplaire attribué.';}catch(e){box.textContent=erreur(e);}}
 async function attribuerMateriel(id){await choisirUnitePuisScanner(false,id);}
+/* Réapprovisionnement TEST : chaque exemplaire a son QR distinct. */
+async function reapprovisionnerParUnite(selected=null){
+ if(!isAdmin())return alert('Accès réservé à la pharmacie.');
+ try{await config(true);}catch(e){return alert(erreur(e));}
+ const possibles=(typeof materiels!=='undefined'?materiels:[]).filter(m=>estSuivi(m.id));
+ if(!possibles.length)return alert('Active d’abord le suivi QR pour un matériel.');
+ const w=document.createElement('div');w.className='cisqr-scan-dialog';
+ w.innerHTML=`<div class="cisqr-scan-card" role="dialog" aria-modal="true" aria-label="Réapprovisionnement par unité"><h2>Réapprovisionnement QR — TEST</h2>
+ <label for="cisqr-mat">Matériel</label><select id="cisqr-mat">${possibles.map(m=>`<option value="${esc(m.id)}" ${String(m.id)===String(selected)?'selected':''}>${esc(m.nom)}</option>`).join('')}</select>
+ <div id="cisqr-demarrage"><label for="cisqr-quantite">Quantité à enregistrer</label><input id="cisqr-quantite" type="number" min="1" max="100" step="1" value="1" inputmode="numeric"><p class="cisqr-small">Chaque unité doit posséder un QR code unique, sa date de péremption et sa destination.</p><button class="cisqr-main" id="cisqr-commencer">Commencer</button></div>
+ <div id="cisqr-etape" hidden><h3 id="cisqr-progression">Unité 1/1</h3><p id="cisqr-confirmes" class="cisqr-small"></p>
+ <label for="cisqr-lot">Numéro de lot (facultatif)</label><input id="cisqr-lot" autocomplete="off" placeholder="Lot fabricant">
+ <label for="cisqr-peremption">Date de péremption</label><input type="date" id="cisqr-peremption">
+ <label for="cisqr-destination">Destination de cette unité</label><select id="cisqr-destination"><option value="pharmacie">Réserve pharmacie</option><option value="vsav">VSAV</option></select>
+ <button class="cisqr-main" id="cisqr-unite-scan">Scanner le QR de cette unité</button></div>
+ <p id="cisqr-unite-statut" class="cisqr-status" aria-live="polite"></p><button id="cisqr-unite-annuler">Fermer</button></div>`;
+ document.body.appendChild(w);
+ const mat=w.querySelector('#cisqr-mat'),etape=w.querySelector('#cisqr-etape'),depart=w.querySelector('#cisqr-demarrage');
+ let total=0,fait=0,occupe=false,pending=null;const codes=new Set();
+ const statut=(m,err=false)=>setStatut('cisqr-unite-statut',m,err);
+ function actualiser(){w.querySelector('#cisqr-progression').textContent=`Unité ${fait+1}/${total}`;w.querySelector('#cisqr-confirmes').textContent=`${fait} unité(s) enregistrée(s) sur ${total}.`;}
+ w.querySelector('#cisqr-unite-annuler').onclick=()=>{if(occupe)return;if(fait&&fait<total&&!confirm(`${fait} unité(s) déjà enregistrée(s). Fermer sans enregistrer les autres ?`))return;w.remove();};
+ w.querySelector('#cisqr-commencer').onclick=()=>{const n=Number(w.querySelector('#cisqr-quantite').value);if(!Number.isInteger(n)||n<1||n>100)return statut('Indique une quantité entière entre 1 et 100.',true);total=n;mat.disabled=true;depart.hidden=true;etape.hidden=false;actualiser();statut('Scanne le QR unique de la première unité.');};
+ w.querySelector('#cisqr-unite-scan').onclick=async()=>{
+  if(occupe||fait>=total)return;
+  const peremption=w.querySelector('#cisqr-peremption').value;
+  if(!peremption)return statut('Renseigne la date de péremption de cette unité.',true);
+  const destination=w.querySelector('#cisqr-destination').value;
+  const lot=w.querySelector('#cisqr-lot').value.trim();
+  await scanner(async code=>{
+   if(occupe)return;occupe=true;const bouton=w.querySelector('#cisqr-unite-scan');bouton.disabled=true;
+   try{
+    if(codes.has(code))throw Error('Ce QR a déjà été utilisé dans ce réapprovisionnement. Chaque unité doit avoir un QR différent.');
+    if(pending?.id&&pending.code!==code)throw Error('Une unité a déjà été créée pour le QR '+pending.code+'. Réessaie avec ce même QR pour éviter une unité orpheline.');
+    const fiche=await rpc('cis_qr_fiche',{p_code:code});
+    if(!fiche)throw Error('QR inconnu : génère d’abord des étiquettes QR dans le module de test.');
+    if(fiche.etat!=='vierge')throw Error('QR déjà attribué ou utilisé : ce code ne peut pas être réutilisé.');
+    if(!confirm(`Confirmer l’unité ${fait+1}/${total} ?\nQR : ${code}\nPéremption : ${peremption}\nDestination : ${destination==='vsav'?'VSAV':'Réserve'}`))return;
+    // On réutilise l’unité créée si l’envoi échoue, afin d’éviter les doublons lors d’un nouvel essai.
+    if(!pending||pending.code!==code){pending={code,id:null};}
+    if(!pending.id){
+     const u=await rpc('cis_qr_unite_creer',{p_materiel:mat.value,p_reference:'Unité '+newID().slice(0,8).toUpperCase(),p_emplacement:destination});
+     if(!u?.id)throw Error('Création de l’unité non confirmée par Supabase.');
+     pending.id=u.id;
+    }
+    await rpc('cis_qr_reapprovisionner',{p_code:code,p_unite:pending.id,p_lot:lot,p_peremption:peremption,p_emplacement:destination});
+    codes.add(code);pending=null;fait++;actualiser();
+    if(fait>=total){statut(`Terminé : ${fait} unités distinctes enregistrées et confirmées par Supabase.`);bouton.hidden=true;w.querySelector('#cisqr-unite-annuler').textContent='Terminer';if(document.getElementById('cisqr-materiels'))await afficherProduits();}
+    else{statut(`Unité ${fait}/${total} enregistrée. Passe à la suivante.`);}
+   }catch(e){statut(erreur(e),true);throw e;}
+   finally{occupe=false;bouton.disabled=false;}
+  });
+ };
+}
+
+/* Pont du réapprovisionnement classique vers la traçabilité individuelle (TEST). */
+async function enregistrerDepuisReapproClassique(materielId, quantite, uniteConfirmee){
+ if(!isAdmin())throw Error('Accès pharmacie requis.');
+ await config(true);
+ if(!estSuivi(materielId))throw Error('Ce matériel n’est pas configuré pour le suivi QR.');
+ const n=Number(quantite);
+ if(!Number.isInteger(n)||n<1||n>99)throw Error('Quantité incorrecte.');
+ return new Promise(resolve=>{
+  const w=document.createElement('div');w.className='cisqr-scan-dialog';
+  w.innerHTML=`<div class="cisqr-scan-card" role="dialog" aria-modal="true"><h2>Réapprovisionnement — unités QR</h2><p><strong>${esc(materiel(materielId)?.nom||'Matériel')}</strong></p><h3 id="cisqr-progress-classique">Unité 1/${n}</h3><p id="cisqr-count-classique" class="cisqr-small">0 unité enregistrée.</p><label>Numéro de lot (facultatif)</label><input id="cisqr-lot-classique" autocomplete="off"><label>Date de péremption</label><input id="cisqr-date-classique" type="date"><label>Destination</label><select id="cisqr-lieu-classique"><option value="pharmacie">Réserve</option><option value="vsav">VSAV</option></select><p id="cisqr-status-classique" role="status" class="cisqr-status"></p><div class="cisqr-row"><button type="button" class="cisqr-main" id="cisqr-scan-classique">Scanner le QR de cette unité</button><button type="button" id="cisqr-stop-classique">Fermer</button></div></div>`;
+  document.body.appendChild(w);
+  let fait=0,busy=false,pending=null;const codes=new Set();
+  const status=(t)=>{const e=w.querySelector('#cisqr-status-classique');if(e)e.textContent=t;};
+  const terminer=()=>{w.remove();resolve({enregistrees:fait,total:n,termine:fait===n});};
+  w.querySelector('#cisqr-stop-classique').onclick=()=>{if(busy)return;if(fait<n&&fait&&!confirm(`${fait} unité(s) enregistrée(s) sur ${n}. Fermer maintenant ?`))return;terminer();};
+  w.querySelector('#cisqr-scan-classique').onclick=async()=>{
+   if(busy)return;
+   const date=w.querySelector('#cisqr-date-classique').value;
+   if(!date){status('Indique la date de péremption de cette unité.');return;}
+   const lieu=w.querySelector('#cisqr-lieu-classique').value;
+   const lot=w.querySelector('#cisqr-lot-classique').value.trim();
+   await scanner(async code=>{
+    if(busy)return;busy=true;const b=w.querySelector('#cisqr-scan-classique');b.disabled=true;
+    try{
+     if(codes.has(code))throw Error('Ce QR a déjà été scanné. Chaque unité doit avoir son propre QR.');
+     const f=await rpc('cis_qr_fiche',{p_code:code});
+     if(!f)throw Error('QR inconnu. Génère les étiquettes dans Traçabilité QR.');
+     if(f.etat!=='vierge')throw Error('QR déjà utilisé : attribution impossible.');
+     if(!confirm(`Confirmer l’unité ${fait+1}/${n} ?\nQR : ${code}\nPéremption : ${date}\nDestination : ${lieu==='vsav'?'VSAV':'Réserve'}`))return;
+     if(!pending||pending.code!==code)pending={code,id:null};
+     if(!pending.id){const u=await rpc('cis_qr_unite_creer',{p_materiel:materielId,p_reference:'Unité '+newID().slice(0,8).toUpperCase(),p_emplacement:lieu});if(!u?.id)throw Error('Unité non confirmée.');pending.id=u.id;}
+     await rpc('cis_qr_reapprovisionner',{p_code:code,p_unite:pending.id,p_lot:lot,p_peremption:date,p_emplacement:lieu});
+     codes.add(code);pending=null;fait++;
+     // Notification immédiate au réapprovisionnement classique, une seule fois par QR confirmé.
+     await uniteConfirmee(code,lieu);
+     w.querySelector('#cisqr-count-classique').textContent=`${fait} unité(s) enregistrée(s) sur ${n}.`;
+     if(fait===n){status('Toutes les unités ont été enregistrées.');terminer();}
+     else{w.querySelector('#cisqr-progress-classique').textContent=`Unité ${fait+1}/${n}`;status('Unité confirmée. Scanne la suivante.');}
+    }catch(e){status(erreur(e));throw e;}
+    finally{busy=false;if(b.isConnected)b.disabled=false;}
+   });
+  };
+ });
+}
+g.CISQRReapproClassique={estSuivi:async id=>{await config(true);return estSuivi(id);},enregistrer:enregistrerDepuisReapproClassique};
 async function choisirUnitePuisScanner(reappro=false,selected=null){
  if(!isAdmin())return alert('Accès réservé à la pharmacie.');
  try{await config(true);}catch(e){return alert(erreur(e));}
