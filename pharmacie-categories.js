@@ -92,7 +92,7 @@
   if(d)void deplacer(id,d.parent,d.avant,instantane());
  });
  function demarrerGeste(source,x,y,type,identifiant){
-  if(busy||!permission()||!source)return;finGeste();
+  if(!source||busy||!permission())return;finGeste();
   const id=source.dataset.pharmaLigne,g={id,source,x,y,startX:x,startY:y,type,identifiant,active:false,attendu:instantane(),dest:null};geste=g;
   g.timer=setTimeout(()=>{
    if(geste!==g||!source.isConnected)return;
