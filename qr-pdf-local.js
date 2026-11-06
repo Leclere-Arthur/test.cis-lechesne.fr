@@ -1276,15 +1276,15 @@ for(let start=0;start<codes.length;start+=2){
         out+='q 0 1 -1 0 '+PAGE_W+' '+offset+' cm\n';
         const width=mm(75);
         const qr=qrModel(code),size=qr.getModuleCount(),pitch=mm(68)/(size+8);
-        const ox=(width-mm(68))/2+pitch*4,oy=mm(29)+pitch*4;
+        const ox=(width-mm(68))/2+pitch*4,oy=mm(11)+pitch*4;
         for(let r=0;r<size;r++)for(let c=0;c<size;c++)if(qr.isDark(r,c)){
             out+=rect(ox+c*pitch,oy+(size-r-1)*pitch,pitch+.015,pitch+.015,true);
         }
         const logoHeight=mm(14),logoWidth=logoHeight*LOGO_W/LOGO_H;
         const titleSize=17,titleWidth=titleSize*7.668,gap=mm(3);
         const groupX=(width-logoWidth-gap-titleWidth)/2;
-        out+='q '+logoWidth+' 0 0 '+logoHeight+' '+groupX+' '+mm(12)+' cm /Logo Do Q\n';
-        out+=pdfText('CIS LE CHESNE',groupX+logoWidth+gap,mm(17),titleSize,true);
+        out+='q '+logoWidth+' 0 0 '+logoHeight+' '+groupX+' '+mm(82)+' cm /Logo Do Q\n';
+        out+=pdfText('CIS LE CHESNE',groupX+logoWidth+gap,mm(87),titleSize,true);
         out+=pdfText(code,(width-code.length*16*.556)/2,mm(6),16,true);
         if(used)out+=pdfText('DEJA ATTRIBUEE',(width-8*7.4)/2,mm(2),8,true);
         out+='Q\n';
