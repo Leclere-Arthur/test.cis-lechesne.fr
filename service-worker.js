@@ -23,7 +23,7 @@ importScripts("./notifications-history.js?v=vsav-sans-stock-v1");
  * à récupérer le nouvel app.js?v=retour-coffres-test-v2.
  */
 
-const CACHE_NAME = "cis-test-thermique-1015-v1";
+const CACHE_NAME = "cis-test-thermique-1015-v2";
 
 
 /*
@@ -36,7 +36,7 @@ const FICHIERS_APPLICATION = ["./isolation-test.js?v=1","./maintenance-client.js
 
     "./",
 
-    "./qr-pdf-local.js?v=thermique-1015-v1",
+    "./qr-pdf-local.js?v=thermique-1015-v2",
     "./index.html",
     "./vsav-sans-stock.js?v=selection-vsav-v2",
     "./suivi-vsav.js?v=selection-vsav-v2",
