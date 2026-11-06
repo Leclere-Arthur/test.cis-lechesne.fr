@@ -1283,9 +1283,9 @@ for(let start=0;start<codes.length;start+=2){
         const logoHeight=mm(14),logoWidth=logoHeight*LOGO_W/LOGO_H;
         const titleSize=17,titleWidth=titleSize*7.668,gap=mm(3);
         const groupX=(width-logoWidth-gap-titleWidth)/2;
-        out+='q '+logoWidth+' 0 0 '+logoHeight+' '+groupX+' '+mm(82)+' cm /Logo Do Q\n';
-        out+=pdfText('CIS LE CHESNE',groupX+logoWidth+gap,mm(87),titleSize,true);
-        out+=pdfText(code,(width-code.length*16*.556)/2,mm(6),16,true);
+        out+='q '+logoWidth+' 0 0 '+logoHeight+' '+groupX+' '+mm(77)+' cm /Logo Do Q\n';
+        out+=pdfText('CIS LE CHESNE',groupX+logoWidth+gap,mm(82),titleSize,true);
+        out+=pdfText(code,(width-code.length*16*.556)/2,mm(11),16,true);
         if(used)out+=pdfText('DEJA ATTRIBUEE',(width-8*7.4)/2,mm(2),8,true);
         out+='Q\n';
     }
