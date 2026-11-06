@@ -1289,7 +1289,7 @@ for(let start=0;start<codes.length;start+=2){
         if(used)out+=pdfText('DEJA ATTRIBUEE',(width-8*7.4)/2,mm(2),8,true);
         out+='Q\n';
     }
-    if(start+1<codes.length)out+='0 G 0.35 w [3 3] 0 d '+mm(4)+' '+mm(75)+' m '+mm(96)+' '+mm(75)+' l S [] 0 d\n';
+    if(start+1<codes.length)out+='0 G 0.5 w '+mm(2)+' '+mm(75)+' m '+mm(12)+' '+mm(75)+' l '+mm(88)+' '+mm(75)+' m '+mm(98)+' '+mm(75)+' l S\n';
     streams.push(out);
 }
 const objs=[null],add=s=>(objs.push(s),objs.length-1),catalog=add(''),pages=add(''),font1=add('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>'),font2=add('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>'),refs=[];
